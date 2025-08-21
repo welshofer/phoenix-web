@@ -99,10 +99,10 @@ export async function queuePresentationImages(
  */
 export async function getNextPendingJob(): Promise<ImageGenerationJob | null> {
   try {
+    // Simplified query - just get pending jobs ordered by creation time
     const q = query(
       collection(db, IMAGE_QUEUE_COLLECTION),
       where('status', '==', 'pending'),
-      orderBy('priority', 'desc'),
       orderBy('createdAt', 'asc'),
       limit(1)
     );
@@ -110,14 +110,38 @@ export async function getNextPendingJob(): Promise<ImageGenerationJob | null> {
     const snapshot = await getDocs(q);
     
     if (snapshot.empty) {
+      console.log('No pending jobs found in queue');
       return null;
     }
     
     const doc = snapshot.docs[0];
+    console.log('Found pending job:', doc.id);
     return { ...doc.data(), id: doc.id } as ImageGenerationJob;
   } catch (error) {
-    console.error('Error getting next job:', error);
-    return null;
+    console.error('Error getting next job - likely missing index:', error);
+    
+    // Fallback: Try without ordering if index is missing
+    try {
+      const fallbackQuery = query(
+        collection(db, IMAGE_QUEUE_COLLECTION),
+        where('status', '==', 'pending'),
+        limit(1)
+      );
+      
+      const fallbackSnapshot = await getDocs(fallbackQuery);
+      
+      if (fallbackSnapshot.empty) {
+        console.log('No pending jobs found (fallback query)');
+        return null;
+      }
+      
+      const doc = fallbackSnapshot.docs[0];
+      console.log('Found pending job (fallback):', doc.id);
+      return { ...doc.data(), id: doc.id } as ImageGenerationJob;
+    } catch (fallbackError) {
+      console.error('Fallback query also failed:', fallbackError);
+      return null;
+    }
   }
 }
 
