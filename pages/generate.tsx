@@ -90,7 +90,7 @@ export default function GeneratePage() {
       // Get ID token for authentication
       const idToken = await user?.getIdToken();
       
-      const response = await fetch('/api/full-presentation', {
+      const response = await fetch('/api/ai/generate-presentation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -108,29 +108,33 @@ export default function GeneratePage() {
         throw new Error(data.error || 'Failed to generate presentation');
       }
 
-      setSuccess(`Presentation generated successfully! ${data.metadata?.actualSlideCount || params.slideCount} slides created in ${data.metadata?.timing?.totalSeconds || '?'} seconds.`);
+      const actualSlideCount = data.slides?.length || params.slideCount;
+      const timingSeconds = data.metadata?.timing?.totalSeconds || 
+                            ((Date.now() - Date.now()) / 1000).toFixed(2);
+      
+      setSuccess(`Presentation generated successfully! ${actualSlideCount} slides created.`);
       
       // Save to Firestore
-      if (data.presentation && user) {
+      if (data.slides && user) {
         try {
           const { savePresentation } = await import('@/lib/firebase/presentations');
           
           const presentationId = await savePresentation({
             metadata: {
-              title: data.presentation.title || 'Untitled Presentation',
-              subtitle: data.presentation.subtitle,
-              author: data.presentation.author || params.author,
+              title: data.presentation?.title || 'Untitled Presentation',
+              ...(data.presentation?.subtitle && { subtitle: data.presentation.subtitle }),
+              author: data.presentation?.metadata?.author || params.author,
               userId: user.uid,
               topic: params.topic,
-              slideCount: data.metadata?.actualSlideCount || params.slideCount,
+              slideCount: actualSlideCount,
               tone: params.tone,
               goal: params.goal,
               audience: params.audience,
               style: params.style,
               isPublic: false,
             },
-            sections: data.presentation.sections || [],
-            slides: data.presentation.slides || [],
+            sections: [],
+            slides: data.slides,
             settings: {
               theme: params.style,
               animations: true,
@@ -143,26 +147,31 @@ export default function GeneratePage() {
           if (params.generateImages === 'now' && params.imageStyle) {
             try {
               // Prepare image generation requests from slides
-              const imageRequests = data.presentation.slides
+              const imageRequests = data.slides
                 .filter((slide: any) => slide.content?.some((obj: any) => obj.type === 'image'))
                 .map((slide: any) => {
                   const imageObj = slide.content.find((obj: any) => obj.type === 'image');
                   return {
                     slideId: slide.id,
-                    description: imageObj?.description || `Image for ${slide.title || 'slide'}`,
+                    description: imageObj?.description || imageObj?.prompt || `Image for ${slide.title || 'slide'}`,
                     style: params.imageStyle,
                     priority: 1, // Normal priority
                   };
                 });
               
               if (imageRequests.length > 0) {
-                // For now, just log that we would generate images
-                // The actual generation will happen in the editor
-                console.log('Would generate', imageRequests.length, 'images with style:', params.imageStyle);
-                setSuccess(`Presentation created! You can generate ${imageRequests.length} images in the editor.`);
+                // Queue image generation jobs asynchronously
+                const { queuePresentationImages } = await import('@/lib/firebase/image-queue');
+                const jobIds = await queuePresentationImages(presentationId, imageRequests);
+                console.log('Queued', jobIds.length, 'image generation jobs');
+                setSuccess(`Presentation created! ${imageRequests.length} images are being generated in the background.`);
                 
                 // Store the image style preference in localStorage for the editor
                 localStorage.setItem('defaultImageStyle', params.imageStyle || 'photorealistic');
+                
+                // Start processing the queue (fire and forget)
+                fetch('/api/imagen/process-queue', { method: 'POST' })
+                  .catch(err => console.error('Failed to start queue processor:', err));
               }
             } catch (error) {
               console.error('Error queueing image generation:', error);
@@ -170,21 +179,29 @@ export default function GeneratePage() {
             }
           }
           
-          // Redirect to editor
-          setTimeout(() => {
-            router.push(`/presentations/${presentationId}/edit`);
-          }, 1500);
+          // Redirect to editor immediately - don't wait for images!
+          setSuccess(`Presentation saved! Redirecting to editor...`);
+          router.push(`/presentations/${presentationId}/edit`);
         } catch (error) {
           console.error('Error saving presentation:', error);
-          // Fall back to localStorage
-          localStorage.setItem('lastPresentation', JSON.stringify(data.presentation));
-          setTimeout(() => {
-            router.push('/presentations/view');
-          }, 2000);
+          // Fall back to localStorage with proper structure
+          const presentationData = {
+            title: data.presentation?.title || 'Untitled Presentation',
+            slides: data.slides,
+            metadata: data.presentation?.metadata || {},
+          };
+          localStorage.setItem('lastPresentation', JSON.stringify(presentationData));
+          setSuccess(`Presentation saved locally! Redirecting...`);
+          router.push('/presentations/view');
         }
       } else {
         // Fallback for anonymous users
-        localStorage.setItem('lastPresentation', JSON.stringify(data.presentation));
+        const presentationData = {
+          title: data.presentation?.title || 'Untitled Presentation',
+          slides: data.slides,
+          metadata: data.presentation?.metadata || {},
+        };
+        localStorage.setItem('lastPresentation', JSON.stringify(presentationData));
         setTimeout(() => {
           router.push('/presentations/view');
         }, 2000);

@@ -1,183 +1,95 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot,
-  QuerySnapshot,
-  DocumentData 
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
-import { ImageStyle } from '@/lib/constants/image-styles';
+  subscribeToImageUpdates, 
+  ImageGenerationJob,
+  getPresentationImageJobs 
+} from '@/lib/firebase/image-queue';
 
-export interface ImageGenerationStatus {
-  total: number;
-  completed: number;
-  processing: number;
-  failed: number;
-  queued: number;
-  percentComplete: number;
-}
-
-export interface ImageRequest {
-  slideId: string;
-  description: string;
-  style?: ImageStyle;
-  priority?: number;
-}
-
-export interface GeneratedImage {
-  slideId: string;
-  imageUrl: string;
-  status: 'completed' | 'processing' | 'queued' | 'failed';
-  error?: string;
+export interface ImageGenerationState {
+  jobs: ImageGenerationJob[];
+  pendingCount: number;
+  processingCount: number;
+  completedCount: number;
+  failedCount: number;
+  isGenerating: boolean;
 }
 
 export function useImageGeneration(presentationId: string | null) {
-  const [status, setStatus] = useState<ImageGenerationStatus>({
-    total: 0,
-    completed: 0,
-    processing: 0,
-    failed: 0,
-    queued: 0,
-    percentComplete: 0,
+  const [state, setState] = useState<ImageGenerationState>({
+    jobs: [],
+    pendingCount: 0,
+    processingCount: 0,
+    completedCount: 0,
+    failedCount: 0,
+    isGenerating: false,
   });
-  
-  const [images, setImages] = useState<Map<string, GeneratedImage>>(new Map());
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Subscribe to real-time updates for image generation
   useEffect(() => {
     if (!presentationId) return;
 
-    const q = query(
-      collection(db, 'imageRequests'),
-      where('presentationId', '==', presentationId)
-    );
+    // Load initial jobs
+    getPresentationImageJobs(presentationId).then(jobs => {
+      updateState(jobs);
+    });
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot: QuerySnapshot<DocumentData>) => {
-        const newImages = new Map<string, GeneratedImage>();
-        let completed = 0;
-        let processing = 0;
-        let failed = 0;
-        let queued = 0;
-
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          const image: GeneratedImage = {
-            slideId: data.slideId,
-            imageUrl: data.imageUrl || '',
-            status: data.status,
-            error: data.error,
-          };
-          
-          newImages.set(data.slideId, image);
-
-          switch (data.status) {
-            case 'completed': completed++; break;
-            case 'processing': processing++; break;
-            case 'failed': failed++; break;
-            case 'queued': queued++; break;
-          }
-        });
-
-        setImages(newImages);
-        
-        const total = snapshot.size;
-        setStatus({
-          total,
-          completed,
-          processing,
-          failed,
-          queued,
-          percentComplete: total > 0 ? Math.round((completed / total) * 100) : 0,
-        });
-      },
-      (error) => {
-        console.error('Error listening to image generation:', error);
-        setError('Failed to track image generation');
+    // Subscribe to real-time updates
+    const unsubscribe = subscribeToImageUpdates(presentationId, (jobs) => {
+      updateState(jobs);
+      
+      // Trigger queue processing if there are pending jobs
+      const hasPending = jobs.some(job => job.status === 'pending');
+      if (hasPending) {
+        triggerQueueProcessing();
       }
-    );
+    });
 
     return () => unsubscribe();
   }, [presentationId]);
 
-  // Generate images for a presentation
-  const generateImages = useCallback(async (
-    userId: string,
-    requests: ImageRequest[]
-  ) => {
-    if (!presentationId) {
-      setError('No presentation ID provided');
-      return;
-    }
+  const updateState = (jobs: ImageGenerationJob[]) => {
+    const pendingCount = jobs.filter(j => j.status === 'pending').length;
+    const processingCount = jobs.filter(j => j.status === 'processing').length;
+    const completedCount = jobs.filter(j => j.status === 'completed').length;
+    const failedCount = jobs.filter(j => j.status === 'failed').length;
+    
+    setState({
+      jobs,
+      pendingCount,
+      processingCount,
+      completedCount,
+      failedCount,
+      isGenerating: pendingCount > 0 || processingCount > 0,
+    });
+  };
 
-    setLoading(true);
-    setError(null);
-
+  const triggerQueueProcessing = async () => {
     try {
-      const response = await fetch('/api/ai/generate-images', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          presentationId,
-          userId,
-          images: requests,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate images');
-      }
-
-      return data.requestIds;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to generate images';
-      setError(message);
-      throw new Error(message);
-    } finally {
-      setLoading(false);
+      await fetch('/api/imagen/process-queue', { method: 'POST' });
+    } catch (error) {
+      console.error('Failed to trigger queue processing:', error);
     }
-  }, [presentationId]);
+  };
 
-  // Cancel pending image generations
-  const cancelGeneration = useCallback(async () => {
-    if (!presentationId) return;
+  const getJobForSlide = (slideId: string): ImageGenerationJob | undefined => {
+    return state.jobs.find(job => job.slideId === slideId);
+  };
 
-    try {
-      const response = await fetch(`/api/ai/generate-images?presentationId=${presentationId}`, {
-        method: 'DELETE',
+  const getCompletedImages = (): Map<string, string[]> => {
+    const imageMap = new Map<string, string[]>();
+    
+    state.jobs
+      .filter(job => job.status === 'completed' && job.imageUrls)
+      .forEach(job => {
+        imageMap.set(job.slideId, job.imageUrls!);
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to cancel generation');
-      }
-    } catch (err) {
-      console.error('Error cancelling generation:', err);
-      setError('Failed to cancel generation');
-    }
-  }, [presentationId]);
-
-  // Get image for a specific slide
-  const getImageForSlide = useCallback((slideId: string): GeneratedImage | undefined => {
-    return images.get(slideId);
-  }, [images]);
+    
+    return imageMap;
+  };
 
   return {
-    status,
-    images,
-    loading,
-    error,
-    generateImages,
-    cancelGeneration,
-    getImageForSlide,
-    isGenerating: status.processing > 0 || status.queued > 0,
+    ...state,
+    getJobForSlide,
+    getCompletedImages,
+    triggerQueueProcessing,
   };
 }
