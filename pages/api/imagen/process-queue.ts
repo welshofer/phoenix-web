@@ -5,7 +5,7 @@ import {
   ImageGenerationJob 
 } from '@/lib/firebase/image-queue';
 import { IMAGE_STYLES } from '@/lib/constants/image-styles';
-import { uploadMultipleImagesAdmin, generateImagePath } from '@/lib/firebase/admin-storage';
+import { uploadMultipleImages, generateImagePath } from '@/lib/firebase/storage';
 
 /**
  * Process image generation queue - SIMPLIFIED VERSION
@@ -116,14 +116,14 @@ async function generateImageVariants(
       .map((prediction: any) => prediction.bytesBase64Encoded)
       .filter(Boolean);
     
-    // Upload to Firebase Storage using Admin SDK
+    // Upload to Firebase Storage
     const basePath = generateImagePath(
       job.presentationId, 
       job.slideId, 
       job.id
-    );
+    ).replace(/\.png$/, ''); // Remove extension for base path
     
-    const imageUrls = await uploadMultipleImagesAdmin(base64Images, basePath);
+    const imageUrls = await uploadMultipleImages(base64Images, basePath);
     console.log(`Uploaded ${imageUrls.length} images to Firebase Storage`);
     
     return { 
