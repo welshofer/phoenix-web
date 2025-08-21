@@ -20,6 +20,11 @@ import {
   Paper,
   IconButton,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CardActionArea,
 } from '@mui/material';
 import {
   AutoAwesome as AIIcon,
@@ -29,9 +34,12 @@ import {
   Groups as AudienceIcon,
   Flag as GoalIcon,
   ViewCarousel as SlidesIcon,
+  Image as ImageIcon,
+  Palette as PaletteIcon,
 } from '@mui/icons-material';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/router';
+import { IMAGE_STYLES, ImageStyle } from '@/lib/server/imagen';
 
 interface GenerationParams {
   topic: string;
@@ -41,6 +49,8 @@ interface GenerationParams {
   goal: 'inform' | 'persuade' | 'educate' | 'inspire' | 'entertain';
   audience: 'general' | 'executives' | 'technical' | 'students' | 'investors';
   style: 'modern' | 'minimal' | 'bold' | 'elegant';
+  generateImages: 'now' | 'later' | 'none';
+  imageStyle?: string;
 }
 
 export default function GeneratePage() {
@@ -58,9 +68,12 @@ export default function GeneratePage() {
     goal: 'inform',
     audience: 'general',
     style: 'modern',
+    generateImages: 'later',
+    imageStyle: 'photorealistic',
   });
 
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [showImageStyleDialog, setShowImageStyleDialog] = useState(false);
 
   const handleGenerate = async () => {
     if (!params.topic.trim()) {
@@ -124,6 +137,50 @@ export default function GeneratePage() {
           });
           
           console.log('Presentation saved with ID:', presentationId);
+          
+          // Queue image generation if requested
+          if (params.generateImages === 'now' && params.imageStyle) {
+            try {
+              // Prepare image generation requests from slides
+              const imageRequests = data.presentation.slides
+                .filter((slide: any) => slide.content?.some((obj: any) => obj.type === 'image'))
+                .map((slide: any) => {
+                  const imageObj = slide.content.find((obj: any) => obj.type === 'image');
+                  return {
+                    slideId: slide.id,
+                    description: imageObj?.description || `Image for ${slide.title || 'slide'}`,
+                    style: params.imageStyle,
+                    priority: 1, // Normal priority
+                  };
+                });
+              
+              if (imageRequests.length > 0) {
+                // Queue the image generation
+                const response = await fetch('/api/ai/generate-images', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    presentationId,
+                    userId: user.uid,
+                    images: imageRequests,
+                  }),
+                });
+                
+                if (response.ok) {
+                  const result = await response.json();
+                  console.log('Queued', result.requestIds?.length || 0, 'images for generation');
+                  setSuccess(`Presentation created! ${imageRequests.length} images are being generated in the background.`);
+                } else {
+                  console.error('Failed to queue image generation');
+                }
+              }
+            } catch (error) {
+              console.error('Error queueing image generation:', error);
+              // Don't fail the whole operation if image generation fails
+            }
+          }
           
           // Redirect to editor
           setTimeout(() => {
@@ -314,6 +371,74 @@ export default function GeneratePage() {
                 </Grid>
               </Grid>
 
+              {/* Image Generation Options */}
+              <Divider sx={{ my: 3 }} />
+              
+              <Box sx={{ mb: 3 }}>
+                <Typography gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <ImageIcon fontSize="small" />
+                  <strong>AI Image Generation</strong>
+                </Typography>
+                
+                <FormControl fullWidth sx={{ mb: 2 }}>
+                  <InputLabel>When to Generate Images</InputLabel>
+                  <Select
+                    value={params.generateImages}
+                    label="When to Generate Images"
+                    onChange={(e) => {
+                      const value = e.target.value as 'now' | 'later' | 'none';
+                      setParams({ ...params, generateImages: value });
+                      if (value === 'now') {
+                        setShowImageStyleDialog(true);
+                      }
+                    }}
+                    disabled={loading}
+                  >
+                    <MenuItem value="now">
+                      <Box>
+                        <Typography variant="body2">Generate with presentation</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Images will start generating after presentation is ready
+                        </Typography>
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="later">
+                      <Box>
+                        <Typography variant="body2">Generate later in editor</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Generate images when you're ready
+                        </Typography>
+                      </Box>
+                    </MenuItem>
+                    <MenuItem value="none">
+                      <Box>
+                        <Typography variant="body2">No images</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Text-only presentation
+                        </Typography>
+                      </Box>
+                    </MenuItem>
+                  </Select>
+                </FormControl>
+                
+                {params.generateImages === 'now' && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Chip
+                      icon={<PaletteIcon />}
+                      label={params.imageStyle ? 
+                        params.imageStyle.replace(/([A-Z])/g, ' $1').trim() : 
+                        'Select Style'}
+                      onClick={() => setShowImageStyleDialog(true)}
+                      color="primary"
+                      variant="outlined"
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                      Click to choose art style for all images
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+
               {/* Advanced Settings */}
               <Box sx={{ mt: 3 }}>
                 <Button
@@ -374,6 +499,71 @@ export default function GeneratePage() {
 
         {/* Side Panel - removed */}
       </Grid>
+
+      {/* Style Selection Dialog */}
+      <Dialog
+        open={showImageStyleDialog}
+        onClose={() => setShowImageStyleDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Choose Art Style for All Images
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            Select an art style that will be applied to all generated images in your presentation.
+          </Typography>
+          <Grid container spacing={2}>
+            {Object.entries(IMAGE_STYLES).map(([key, description]) => (
+              <Grid item xs={12} sm={6} md={4} key={key}>
+                <Card
+                  sx={{
+                    cursor: 'pointer',
+                    border: params.imageStyle === key ? 2 : 1,
+                    borderColor: params.imageStyle === key ? 'primary.main' : 'divider',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      borderColor: 'primary.light',
+                      transform: 'translateY(-2px)',
+                      boxShadow: 2,
+                    },
+                  }}
+                >
+                  <CardActionArea
+                    onClick={() => {
+                      setParams({ ...params, imageStyle: key });
+                      setShowImageStyleDialog(false);
+                    }}
+                  >
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <GridOn fontSize="small" color="primary" />
+                        <Typography variant="subtitle2" fontWeight="medium">
+                          {key.replace(/([A-Z])/g, ' $1').trim()}
+                        </Typography>
+                      </Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {description.substring(0, 100)}...
+                      </Typography>
+                    </CardContent>
+                  </CardActionArea>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowImageStyleDialog(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => setShowImageStyleDialog(false)}
+            disabled={!params.imageStyle}
+          >
+            Confirm Style
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }
