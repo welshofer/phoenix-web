@@ -73,39 +73,9 @@ export default async function handler(
 
     const { sanitized } = validation;
 
-    // Check rate limits only for authenticated users
+    // Skip rate limits for now - remove daily slide generation limits
     let rateLimitCheck = { allowed: true, remaining: 100 };
     let dailyLimitCheck = { allowed: true, remaining: 100 };
-    
-    if (isAuthenticated && userId) {
-      try {
-        rateLimitCheck = await checkRateLimit(userId, 'free');
-        if (!rateLimitCheck.allowed) {
-          return res.status(429).json({
-            success: false,
-            error: rateLimitCheck.reason || 'Rate limit exceeded',
-            usage: {
-              requestsRemaining: rateLimitCheck.remaining,
-              slidesRemaining: 0,
-            },
-          });
-        }
-
-        dailyLimitCheck = await checkDailyLimits(userId, 'free', 'slides');
-        if (sanitized.slideCount > dailyLimitCheck.remaining) {
-          return res.status(429).json({
-            success: false,
-            error: `Daily limit exceeded. You can generate ${dailyLimitCheck.remaining} more slides today.`,
-            usage: {
-              slidesRemaining: dailyLimitCheck.remaining,
-              requestsRemaining: rateLimitCheck.remaining,
-            },
-          });
-        }
-      } catch (error) {
-        console.warn('Rate limiting check failed, proceeding without limits:', error);
-      }
-    }
 
     // Generate presentation without retry wrapper for better performance
     console.log(`Starting generation: ${sanitized.slideCount} slides about "${sanitized.topic}"`);
