@@ -6,8 +6,8 @@ import { imagenRateLimiter } from '@/lib/imagen/rate-limiter';
  * This endpoint processes multiple jobs and is designed to be called periodically
  */
 
-const MAX_JOBS_PER_RUN = 3; // Reduced to avoid overwhelming rate limits
-const MIN_PROCESSING_INTERVAL = 6000; // Minimum 6 seconds between jobs for rate limiting
+const MAX_JOBS_PER_RUN = 1; // Process only 1 job per run to avoid rate limits
+const MIN_PROCESSING_INTERVAL = 10000; // Minimum 10 seconds between jobs for strict rate limiting
 
 export default async function handler(
   req: NextApiRequest,

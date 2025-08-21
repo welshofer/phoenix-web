@@ -55,7 +55,7 @@ export default function ImageGenerationProgress({
       fetch('/api/imagen/process-continuous', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ maxJobs: 2 }), // Process fewer jobs at once
+        body: JSON.stringify({ maxJobs: 1 }), // Process only 1 job at a time
       }).then(result => result.json())
         .then(data => console.log('Initial processor:', data.message))
         .catch(error => console.error('Failed to process queue:', error));
@@ -66,7 +66,7 @@ export default function ImageGenerationProgress({
           const response = await fetch('/api/imagen/process-continuous', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ maxJobs: 2 }), // Process fewer jobs at once
+            body: JSON.stringify({ maxJobs: 1 }), // Process only 1 job at a time
           });
           
           const result = await response.json();
@@ -80,7 +80,7 @@ export default function ImageGenerationProgress({
         } catch (error) {
           console.error('Failed to process queue:', error);
         }
-      }, 15000); // Run every 15 seconds (was 5) to respect rate limits
+      }, 20000); // Run every 20 seconds to respect strict rate limits
       
       setProcessingInterval(interval);
     }

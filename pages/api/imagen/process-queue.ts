@@ -51,6 +51,7 @@ async function generateImageVariants(
     
     // Try to consume a token
     if (!imagenRateLimiter.consumeToken()) {
+      console.log('Rate limiter: no tokens available');
       return {
         imageUrls: [],
         fullPrompt: '',
@@ -63,7 +64,7 @@ async function generateImageVariants(
     const stylePrompt = IMAGE_STYLES[job.style as keyof typeof IMAGE_STYLES] || IMAGE_STYLES.photorealistic;
     const prompt = `${job.description}, ${stylePrompt}`;
     
-    console.log('Generating image variants for queue job, style:', job.style);
+    console.log(`Generating image for job ${job.id}, style: ${job.style}`);
     
     const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${MODEL}:predict`;
     
@@ -86,7 +87,7 @@ async function generateImageVariants(
     });
     
     const responseTime = Date.now() - startTime;
-    console.log(`Imagen API response: ${response.status} in ${responseTime}ms`);
+    console.log(`Imagen API response for job ${job.id}: ${response.status} in ${responseTime}ms`);
     
     // Handle rate limiting
     if (response.status === 429) {

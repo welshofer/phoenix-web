@@ -133,9 +133,9 @@ class RateLimiter {
 // Singleton instance for the Imagen API
 // Google Imagen has strict rate limits, so we start conservatively
 const imagenRateLimiter = new RateLimiter({
-  tokensPerMinute: 10, // Very conservative: 10 requests per minute
-  maxBurst: 3, // Allow 3 concurrent requests max
-  retryDelayMs: 5000, // Base retry delay of 5 seconds
+  tokensPerMinute: 6, // Ultra conservative: 6 requests per minute (1 every 10 seconds)
+  maxBurst: 2, // Allow 2 concurrent requests max
+  retryDelayMs: 10000, // Base retry delay of 10 seconds
 });
 
 export { imagenRateLimiter, RateLimiter };
