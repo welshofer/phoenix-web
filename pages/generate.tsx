@@ -152,10 +152,13 @@ export default function GeneratePage() {
           if (params.generateImages === 'now' && params.imageStyle) {
             try {
               // Prepare image generation requests from slides with image objects
-              const imageRequests = slides
-                .filter((slide: any) => slide.objects?.some((obj: any) => obj.type === 'image'))
-                .map((slide: any) => {
+              console.log('Checking slides for images:', slides.length, 'slides');
+              const slidesWithImages = slides.filter((slide: any) => slide.objects?.some((obj: any) => obj.type === 'image'));
+              console.log('Slides with images:', slidesWithImages.length);
+              
+              const imageRequests = slidesWithImages.map((slide: any) => {
                   const imageObj = slide.objects.find((obj: any) => obj.type === 'image');
+                  console.log('Image object found:', imageObj);
                   return {
                     slideId: slide.id,
                     description: imageObj?.alt || imageObj?.generationDescription || `Image for slide`,

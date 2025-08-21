@@ -75,9 +75,11 @@ export async function queuePresentationImages(
     priority?: number;
   }>
 ): Promise<string[]> {
+  console.log('queuePresentationImages called with:', presentationId, images.length, 'images');
   const jobIds: string[] = [];
   
   for (const image of images) {
+    console.log('Queueing image for slide:', image.slideId, 'description:', image.description);
     const jobId = await queueImageGeneration({
       presentationId,
       slideId: image.slideId,
@@ -88,6 +90,7 @@ export async function queuePresentationImages(
     jobIds.push(jobId);
   }
   
+  console.log('Queued', jobIds.length, 'jobs successfully');
   return jobIds;
 }
 
