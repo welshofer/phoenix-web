@@ -23,7 +23,7 @@ import { useImageGeneration } from '@/hooks/useImageGeneration';
 
 interface ImageGenerationProgressProps {
   presentationId: string;
-  onImagesReady?: (slideImages: Map<string, string[]>) => void;
+  onImagesReady?: (slideImages: Map<string, string[]>, jobData?: any[]) => void;
 }
 
 export default function ImageGenerationProgress({ 
@@ -83,9 +83,10 @@ export default function ImageGenerationProgress({
   // Notify when images are ready
   useEffect(() => {
     if (completedCount > 0 && onImagesReady) {
-      onImagesReady(getCompletedImages());
+      const completedJobs = jobs.filter(j => j.status === 'completed');
+      onImagesReady(getCompletedImages(), completedJobs);
     }
-  }, [completedCount, getCompletedImages, onImagesReady]);
+  }, [completedCount, getCompletedImages, onImagesReady, jobs]);
 
   if (totalCount === 0) {
     return null;
@@ -94,9 +95,28 @@ export default function ImageGenerationProgress({
   const handleRetryFailed = async () => {
     // Re-queue failed jobs
     const failedJobs = jobs.filter(j => j.status === 'failed');
-    for (const job of failedJobs) {
-      // TODO: Implement retry logic
-      console.log('Would retry job:', job.id);
+    
+    try {
+      for (const job of failedJobs) {
+        // Reset job status to pending for retry
+        const response = await fetch('/api/imagen/retry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jobId: job.id }),
+        });
+        
+        if (!response.ok) {
+          console.error('Failed to retry job:', job.id);
+        }
+      }
+      
+      // Start processing again
+      if (processingInterval) {
+        clearInterval(processingInterval);
+        setProcessingInterval(null);
+      }
+    } catch (error) {
+      console.error('Error retrying failed jobs:', error);
     }
   };
 

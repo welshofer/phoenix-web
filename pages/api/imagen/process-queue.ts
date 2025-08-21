@@ -5,6 +5,8 @@ import {
   ImageGenerationJob 
 } from '@/lib/firebase/image-queue';
 import { IMAGE_STYLES } from '@/lib/constants/image-styles';
+import { withCircuitBreaker } from '@/lib/imagen/circuit-breaker';
+import { uploadMultipleImages, generateImagePath, dataUrlToBase64 } from '@/lib/firebase/storage';
 
 /**
  * Process image generation queue
@@ -33,7 +35,7 @@ async function getAccessToken(): Promise<string> {
 async function generateImageVariants(
   description: string,
   style: string
-): Promise<{ imageUrls: string[], error?: string }> {
+): Promise<{ imageUrls: string[], fullPrompt: string, error?: string }> {
   try {
     const accessToken = await getAccessToken();
     const stylePrompt = IMAGE_STYLES[style as keyof typeof IMAGE_STYLES] || IMAGE_STYLES.photorealistic;
@@ -72,17 +74,26 @@ async function generateImageVariants(
       throw new Error('No images generated');
     }
     
-    // Convert base64 to data URLs (in production, upload to storage)
-    const imageUrls = result.predictions
+    // Get base64 strings
+    const base64Images = result.predictions
       .map((pred: any) => pred.bytesBase64Encoded)
-      .filter(Boolean)
-      .map((base64: string) => `data:image/png;base64,${base64}`);
+      .filter(Boolean);
     
-    return { imageUrls };
+    // Upload to Firebase Storage
+    const basePath = generateImagePath(
+      job.presentationId, 
+      job.slideId, 
+      job.id
+    ).replace(/\.png$/, ''); // Remove extension for base path
+    
+    const imageUrls = await uploadMultipleImages(base64Images, basePath);
+    
+    return { imageUrls, fullPrompt: prompt };
   } catch (error) {
     console.error('Error generating images:', error);
     return { 
       imageUrls: [], 
+      fullPrompt: '',
       error: error instanceof Error ? error.message : 'Failed to generate images' 
     };
   }
@@ -113,30 +124,70 @@ export default async function handler(
     // Mark job as processing
     await updateJobStatus(job.id, 'processing');
     
-    // Generate images
-    const { imageUrls, error } = await generateImageVariants(
-      job.description,
-      job.style
-    );
+    // Generate images with circuit breaker protection
+    let imageUrls: string[] = [];
+    let fullPrompt: string = '';
+    let error: string | undefined;
     
-    if (error || imageUrls.length === 0) {
-      // Mark as failed
-      await updateJobStatus(job.id, 'failed', {
-        error: error || 'No images generated',
-        retryCount: (job.retryCount || 0) + 1,
-      });
-      
-      return res.status(200).json({
-        success: false,
-        jobId: job.id,
-        error: error || 'No images generated',
-      });
+    try {
+      const result = await withCircuitBreaker(
+        () => generateImageVariants(job.description, job.style),
+        { imageUrls: [], fullPrompt: '', error: 'Circuit breaker open - service unavailable' }
+      );
+      imageUrls = result.imageUrls;
+      fullPrompt = result.fullPrompt;
+      error = result.error;
+    } catch (circuitError) {
+      error = circuitError instanceof Error ? circuitError.message : 'Circuit breaker error';
+      console.error('Circuit breaker error:', circuitError);
     }
     
-    // Mark as completed with image URLs
+    if (error || imageUrls.length === 0) {
+      const retryCount = (job.retryCount || 0) + 1;
+      const maxRetries = 3;
+      
+      if (retryCount < maxRetries) {
+        // Retry with exponential backoff
+        const backoffDelay = Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s
+        
+        await updateJobStatus(job.id, 'pending', {
+          error: error || 'No images generated',
+          retryCount,
+          // Add a retry timestamp for delayed processing
+          retryAfter: new Date(Date.now() + backoffDelay),
+        });
+        
+        console.log(`Job ${job.id} will retry (attempt ${retryCount}/${maxRetries}) after ${backoffDelay}ms`);
+        
+        return res.status(200).json({
+          success: false,
+          jobId: job.id,
+          error: error || 'No images generated',
+          willRetry: true,
+          retryCount,
+          retryAfter: backoffDelay,
+        });
+      } else {
+        // Max retries exceeded, mark as permanently failed
+        await updateJobStatus(job.id, 'failed', {
+          error: `${error || 'No images generated'} (max retries exceeded)`,
+          retryCount,
+        });
+        
+        return res.status(200).json({
+          success: false,
+          jobId: job.id,
+          error: error || 'No images generated',
+          maxRetriesExceeded: true,
+        });
+      }
+    }
+    
+    // Mark as completed with image URLs and prompt
     await updateJobStatus(job.id, 'completed', {
       imageUrls,
       heroIndex: 0, // Default first image as hero
+      fullPrompt, // Store the complete prompt used
     });
     
     // Also update the presentation slide with the new images
