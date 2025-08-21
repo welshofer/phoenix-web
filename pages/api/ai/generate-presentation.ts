@@ -132,39 +132,97 @@ Return JSON:
       console.error('JSON parse error:', parseError);
       console.log('Raw JSON text length:', jsonText.length);
       
-      // Try to fix unterminated strings by adding quotes
-      if (parseError instanceof Error && parseError.message.includes('Unterminated string')) {
-        // Find the last valid JSON closing bracket/brace
-        const lastValidIndex = Math.max(
-          jsonText.lastIndexOf('"}'),
-          jsonText.lastIndexOf('"]'),
-          jsonText.lastIndexOf('}]')
-        );
-        
-        if (lastValidIndex > 0) {
-          // Truncate at the last valid position and close the JSON
-          jsonText = jsonText.substring(0, lastValidIndex + 2);
-          
-          // Count open brackets to close them properly
-          const openBrackets = (jsonText.match(/\[/g) || []).length;
-          const closeBrackets = (jsonText.match(/\]/g) || []).length;
-          const openBraces = (jsonText.match(/\{/g) || []).length;
-          const closeBraces = (jsonText.match(/\}/g) || []).length;
-          
-          // Add missing closing brackets/braces
-          jsonText += ']'.repeat(Math.max(0, openBrackets - closeBrackets));
-          jsonText += '}'.repeat(Math.max(0, openBraces - closeBraces));
-          
-          try {
-            aiResponse = JSON.parse(jsonText);
-            console.log('Successfully recovered JSON by truncating at position', lastValidIndex);
-          } catch (retryError) {
-            throw new Error(`Failed to parse AI response: ${parseError.message}`);
+      // Try multiple recovery strategies
+      const recoveryStrategies = [
+        // Strategy 1: Find last complete slide object and truncate there
+        () => {
+          const slideMatches = [...jsonText.matchAll(/\{"type"[^}]*\}/g)];
+          if (slideMatches.length > 0) {
+            const lastCompleteSlide = slideMatches[slideMatches.length - 1];
+            const endIndex = lastCompleteSlide.index! + lastCompleteSlide[0].length;
+            const truncated = jsonText.substring(0, endIndex) + ']}';
+            
+            // Try to extract title and subtitle from the beginning
+            const titleMatch = jsonText.match(/"title"\s*:\s*"([^"]*)"/);
+            const subtitleMatch = jsonText.match(/"subtitle"\s*:\s*"([^"]*)"/);
+            
+            return {
+              title: titleMatch ? titleMatch[1] : 'Presentation',
+              subtitle: subtitleMatch ? subtitleMatch[1] : '',
+              slides: JSON.parse('[' + slideMatches.map(m => m[0]).join(',') + ']')
+            };
           }
-        } else {
-          throw new Error(`Failed to parse AI response: ${parseError.message}`);
+          return null;
+        },
+        
+        // Strategy 2: Fix unterminated strings by closing them
+        () => {
+          // Find the error position
+          const errorMatch = parseError.message.match(/position (\d+)/);
+          if (errorMatch) {
+            const errorPos = parseInt(errorMatch[1]);
+            
+            // Find the last complete object before the error
+            const beforeError = jsonText.substring(0, errorPos);
+            const lastObjectEnd = Math.max(
+              beforeError.lastIndexOf('},'),
+              beforeError.lastIndexOf('}]'),
+              beforeError.lastIndexOf('"}')
+            );
+            
+            if (lastObjectEnd > 0) {
+              let fixed = jsonText.substring(0, lastObjectEnd + 1);
+              
+              // Close any unclosed arrays and objects
+              const arrays = (fixed.match(/\[/g) || []).length - (fixed.match(/\]/g) || []).length;
+              const objects = (fixed.match(/\{/g) || []).length - (fixed.match(/\}/g) || []).length;
+              
+              fixed += ']'.repeat(arrays) + '}'.repeat(objects);
+              
+              return JSON.parse(fixed);
+            }
+          }
+          return null;
+        },
+        
+        // Strategy 3: Try to parse just the slides array
+        () => {
+          const slidesMatch = jsonText.match(/"slides"\s*:\s*\[([^\]]*)/);
+          if (slidesMatch) {
+            try {
+              // Extract individual slide objects
+              const slidesText = slidesMatch[1];
+              const slideObjects = slidesText.match(/\{[^}]*\}/g) || [];
+              
+              return {
+                title: 'Recovered Presentation',
+                subtitle: '',
+                slides: slideObjects.map(s => JSON.parse(s))
+              };
+            } catch (e) {
+              return null;
+            }
+          }
+          return null;
         }
-      } else {
+      ];
+      
+      // Try each recovery strategy
+      for (const strategy of recoveryStrategies) {
+        try {
+          const recovered = strategy();
+          if (recovered && recovered.slides && recovered.slides.length > 0) {
+            console.log('Successfully recovered JSON using fallback strategy');
+            aiResponse = recovered;
+            break;
+          }
+        } catch (e) {
+          // Try next strategy
+          continue;
+        }
+      }
+      
+      if (!aiResponse) {
         throw new Error(`Failed to parse AI response: ${parseError.message}`);
       }
     }
