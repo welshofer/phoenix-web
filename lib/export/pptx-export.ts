@@ -338,6 +338,14 @@ export class PptxExporter {
   }
 
   /**
+   * Save presentation to blob (for use with exportSlide calls)
+   */
+  public async save(): Promise<Blob> {
+    const blob = await this.pptx.write({ outputType: 'blob' });
+    return blob as Blob;
+  }
+
+  /**
    * Save presentation to file
    */
   public async saveToFile(
