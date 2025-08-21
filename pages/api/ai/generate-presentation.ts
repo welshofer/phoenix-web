@@ -54,17 +54,13 @@ export default async function handler(
     // Validate request body
     const { topic, slideCount, style, userId, idToken } = req.body as GeneratePresentationRequest;
 
-    // Verify Firebase auth token
-    if (!idToken || !userId) {
-      return res.status(401).json({
-        success: false,
-        error: 'Authentication required',
-      });
+    // Skip auth verification for now if no token provided
+    // This allows both authenticated and anonymous usage
+    const isAuthenticated = !!(idToken && userId);
+    
+    if (!isAuthenticated) {
+      console.log('Processing request without authentication');
     }
-
-    // TODO: Verify the idToken with Firebase Admin SDK
-    // const decodedToken = await admin.auth().verifyIdToken(idToken);
-    // if (decodedToken.uid !== userId) { ... }
 
     // Validate and sanitize input
     const validation = validateInput({ topic, slideCount, style });
@@ -77,39 +73,44 @@ export default async function handler(
 
     const { sanitized } = validation;
 
-    // Check rate limits (optional - skip if Firestore is offline)
+    // Check rate limits only for authenticated users
     let rateLimitCheck = { allowed: true, remaining: 100 };
     let dailyLimitCheck = { allowed: true, remaining: 100 };
     
-    try {
-      rateLimitCheck = await checkRateLimit(userId, 'free');
-      if (!rateLimitCheck.allowed) {
-        return res.status(429).json({
-          success: false,
-          error: rateLimitCheck.reason || 'Rate limit exceeded',
-          usage: {
-            requestsRemaining: rateLimitCheck.remaining,
-            slidesRemaining: 0,
-          },
-        });
-      }
+    if (isAuthenticated && userId) {
+      try {
+        rateLimitCheck = await checkRateLimit(userId, 'free');
+        if (!rateLimitCheck.allowed) {
+          return res.status(429).json({
+            success: false,
+            error: rateLimitCheck.reason || 'Rate limit exceeded',
+            usage: {
+              requestsRemaining: rateLimitCheck.remaining,
+              slidesRemaining: 0,
+            },
+          });
+        }
 
-      dailyLimitCheck = await checkDailyLimits(userId, 'free', 'slides');
-      if (sanitized.slideCount > dailyLimitCheck.remaining) {
-        return res.status(429).json({
-          success: false,
-          error: `Daily limit exceeded. You can generate ${dailyLimitCheck.remaining} more slides today.`,
-          usage: {
-            slidesRemaining: dailyLimitCheck.remaining,
-            requestsRemaining: rateLimitCheck.remaining,
-          },
-        });
+        dailyLimitCheck = await checkDailyLimits(userId, 'free', 'slides');
+        if (sanitized.slideCount > dailyLimitCheck.remaining) {
+          return res.status(429).json({
+            success: false,
+            error: `Daily limit exceeded. You can generate ${dailyLimitCheck.remaining} more slides today.`,
+            usage: {
+              slidesRemaining: dailyLimitCheck.remaining,
+              requestsRemaining: rateLimitCheck.remaining,
+            },
+          });
+        }
+      } catch (error) {
+        console.warn('Rate limiting check failed, proceeding without limits:', error);
       }
-    } catch (error) {
-      console.warn('Rate limiting check failed, proceeding without limits:', error);
     }
 
     // Generate presentation without retry wrapper for better performance
+    console.log(`Starting generation: ${sanitized.slideCount} slides about "${sanitized.topic}"`);
+    const startTime = Date.now();
+    
     const model = await getGeminiModel();
     
     const prompt = `Create a ${sanitized.slideCount}-slide ${sanitized.style} presentation about "${sanitized.topic}".
@@ -125,8 +126,20 @@ Return JSON:
   ]
 }`;
 
-    const result = await model.generateContent(prompt);
+    console.log('Calling Gemini API...');
+    
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Gemini API timeout after 30 seconds')), 30000)
+    );
+    
+    const resultPromise = model.generateContent(prompt);
+    
+    const result = await Promise.race([resultPromise, timeoutPromise]) as any;
     const response = result.response;
+    
+    const genTime = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(`Gemini responded in ${genTime} seconds`);
     
     // Get text from the response properly
     const candidate = response.candidates?.[0];
@@ -145,15 +158,17 @@ Return JSON:
       createSlideFromAIContent(aiSlide, index, 'modern')
     );
 
-    // Track usage (optional - skip if Firestore is offline)
-    try {
-      await trackUsage(userId, 'presentation', 1, {
-        model: 'gemini-2.5-flash',
-        slideCount: slides.length,
-      });
-      await trackUsage(userId, 'slides', slides.length);
-    } catch (error) {
-      console.warn('Usage tracking failed:', error);
+    // Track usage only for authenticated users
+    if (isAuthenticated && userId) {
+      try {
+        await trackUsage(userId, 'presentation', 1, {
+          model: 'gemini-2.5-flash',
+          slideCount: slides.length,
+        });
+        await trackUsage(userId, 'slides', slides.length);
+      } catch (error) {
+        console.warn('Usage tracking failed:', error);
+      }
     }
 
     // Return successful response

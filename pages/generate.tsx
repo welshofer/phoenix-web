@@ -108,22 +108,24 @@ export default function GeneratePage() {
         throw new Error(data.error || 'Failed to generate presentation');
       }
 
-      const actualSlideCount = data.slides?.length || params.slideCount;
-      const timingSeconds = data.metadata?.timing?.totalSeconds || 
-                            ((Date.now() - Date.now()) / 1000).toFixed(2);
+      // Handle the nested data structure from API
+      const slides = data.data?.slides || data.slides || [];
+      const title = data.data?.title || data.presentation?.title || 'Untitled Presentation';
+      const subtitle = data.data?.subtitle || data.presentation?.subtitle;
+      const actualSlideCount = slides.length || params.slideCount;
       
       setSuccess(`Presentation generated successfully! ${actualSlideCount} slides created.`);
       
       // Save to Firestore
-      if (data.slides && user) {
+      if (slides.length > 0 && user) {
         try {
           const { savePresentation } = await import('@/lib/firebase/presentations');
           
           const presentationId = await savePresentation({
             metadata: {
-              title: data.presentation?.title || 'Untitled Presentation',
-              ...(data.presentation?.subtitle && { subtitle: data.presentation.subtitle }),
-              author: data.presentation?.metadata?.author || params.author,
+              title: title,
+              ...(subtitle && { subtitle }),
+              author: params.author,
               userId: user.uid,
               topic: params.topic,
               slideCount: actualSlideCount,
@@ -133,8 +135,11 @@ export default function GeneratePage() {
               style: params.style,
               isPublic: false,
             },
-            sections: [],
-            slides: data.slides,
+            sections: [{
+              title: 'Main',
+              slides: slides
+            }],
+            slides: slides,
             settings: {
               theme: params.style,
               animations: true,
@@ -147,7 +152,7 @@ export default function GeneratePage() {
           if (params.generateImages === 'now' && params.imageStyle) {
             try {
               // Prepare image generation requests from slides
-              const imageRequests = data.slides
+              const imageRequests = slides
                 .filter((slide: any) => slide.content?.some((obj: any) => obj.type === 'image'))
                 .map((slide: any) => {
                   const imageObj = slide.content.find((obj: any) => obj.type === 'image');
@@ -186,20 +191,26 @@ export default function GeneratePage() {
           console.error('Error saving presentation:', error);
           // Fall back to localStorage with proper structure
           const presentationData = {
-            title: data.presentation?.title || 'Untitled Presentation',
-            slides: data.slides,
-            metadata: data.presentation?.metadata || {},
+            title: title,
+            sections: [{
+              title: 'Main',
+              slides: slides
+            }],
+            metadata: data.data?.metadata || {},
           };
           localStorage.setItem('lastPresentation', JSON.stringify(presentationData));
           setSuccess(`Presentation saved locally! Redirecting...`);
           router.push('/presentations/view');
         }
       } else {
-        // Fallback for anonymous users
+        // Fallback for anonymous users - match expected structure
         const presentationData = {
-          title: data.presentation?.title || 'Untitled Presentation',
-          slides: data.slides,
-          metadata: data.presentation?.metadata || {},
+          title: title,
+          sections: [{
+            title: 'Main',
+            slides: slides
+          }],
+          metadata: data.data?.metadata || {},
         };
         localStorage.setItem('lastPresentation', JSON.stringify(presentationData));
         setTimeout(() => {
