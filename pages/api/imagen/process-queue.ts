@@ -7,6 +7,7 @@ import {
 import { IMAGE_STYLES } from '@/lib/constants/image-styles';
 import { withCircuitBreaker } from '@/lib/imagen/circuit-breaker';
 import { uploadMultipleImages, generateImagePath, dataUrlToBase64 } from '@/lib/firebase/storage';
+import { imagenRateLimiter } from '@/lib/imagen/rate-limiter';
 
 /**
  * Process image generation queue
@@ -33,15 +34,36 @@ async function getAccessToken(): Promise<string> {
 }
 
 async function generateImageVariants(
-  description: string,
-  style: string
-): Promise<{ imageUrls: string[], fullPrompt: string, error?: string }> {
+  job: ImageGenerationJob
+): Promise<{ imageUrls: string[], fullPrompt: string, error?: string, shouldRetry?: boolean }> {
   try {
-    const accessToken = await getAccessToken();
-    const stylePrompt = IMAGE_STYLES[style as keyof typeof IMAGE_STYLES] || IMAGE_STYLES.photorealistic;
-    const prompt = `${description}, ${stylePrompt}`;
+    // Check rate limiter before making request
+    const waitTime = imagenRateLimiter.getWaitTimeMs();
+    if (waitTime > 0) {
+      console.log(`Rate limiter: waiting ${waitTime}ms before request`);
+      return {
+        imageUrls: [],
+        fullPrompt: '',
+        error: `Rate limited - waiting ${Math.ceil(waitTime / 1000)}s`,
+        shouldRetry: true
+      };
+    }
     
-    console.log('Generating image variants for queue job, style:', style);
+    // Try to consume a token
+    if (!imagenRateLimiter.consumeToken()) {
+      return {
+        imageUrls: [],
+        fullPrompt: '',
+        error: 'Rate limit exceeded - no tokens available',
+        shouldRetry: true
+      };
+    }
+    
+    const accessToken = await getAccessToken();
+    const stylePrompt = IMAGE_STYLES[job.style as keyof typeof IMAGE_STYLES] || IMAGE_STYLES.photorealistic;
+    const prompt = `${job.description}, ${stylePrompt}`;
+    
+    console.log('Generating image variants for queue job, style:', job.style);
     
     const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${MODEL}:predict`;
     
@@ -53,6 +75,7 @@ async function generateImageVariants(
       }
     };
     
+    const startTime = Date.now();
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -62,11 +85,35 @@ async function generateImageVariants(
       body: JSON.stringify(requestBody),
     });
     
+    const responseTime = Date.now() - startTime;
+    console.log(`Imagen API response: ${response.status} in ${responseTime}ms`);
+    
+    // Handle rate limiting
+    if (response.status === 429) {
+      const retryAfter = response.headers.get('retry-after');
+      const retryMs = retryAfter ? parseInt(retryAfter) * 1000 : undefined;
+      
+      imagenRateLimiter.handleRateLimitError(retryMs);
+      
+      const errorText = await response.text().catch(() => 'Rate limited');
+      console.error('Rate limited by Imagen API:', errorText);
+      
+      return {
+        imageUrls: [],
+        fullPrompt: prompt,
+        error: 'Rate limited by API - will retry with backoff',
+        shouldRetry: true
+      };
+    }
+    
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Vertex AI error:', errorText);
       throw new Error(`Image generation failed: ${response.status}`);
     }
+    
+    // Success - notify rate limiter
+    imagenRateLimiter.handleSuccess();
     
     const result = await response.json();
     
@@ -94,7 +141,8 @@ async function generateImageVariants(
     return { 
       imageUrls: [], 
       fullPrompt: '',
-      error: error instanceof Error ? error.message : 'Failed to generate images' 
+      error: error instanceof Error ? error.message : 'Failed to generate images',
+      shouldRetry: false 
     };
   }
 }
@@ -128,27 +176,32 @@ export default async function handler(
     let imageUrls: string[] = [];
     let fullPrompt: string = '';
     let error: string | undefined;
+    let shouldRetry: boolean = false;
     
     try {
       const result = await withCircuitBreaker(
-        () => generateImageVariants(job.description, job.style),
-        { imageUrls: [], fullPrompt: '', error: 'Circuit breaker open - service unavailable' }
+        () => generateImageVariants(job),
+        { imageUrls: [], fullPrompt: '', error: 'Circuit breaker open - service unavailable', shouldRetry: true }
       );
       imageUrls = result.imageUrls;
       fullPrompt = result.fullPrompt;
       error = result.error;
+      shouldRetry = result.shouldRetry || false;
     } catch (circuitError) {
       error = circuitError instanceof Error ? circuitError.message : 'Circuit breaker error';
+      shouldRetry = true;
       console.error('Circuit breaker error:', circuitError);
     }
     
     if (error || imageUrls.length === 0) {
       const retryCount = (job.retryCount || 0) + 1;
-      const maxRetries = 3;
+      const maxRetries = 5; // Increased from 3 to handle rate limiting better
       
-      if (retryCount < maxRetries) {
-        // Retry with exponential backoff
-        const backoffDelay = Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s
+      if (shouldRetry && retryCount < maxRetries) {
+        // Calculate backoff delay with jitter
+        const baseDelay = Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s, 16s, 32s
+        const jitter = Math.random() * 1000; // Add 0-1s jitter
+        const backoffDelay = Math.min(baseDelay + jitter, 60000); // Cap at 60s
         
         await updateJobStatus(job.id, 'pending', {
           error: error || 'No images generated',
@@ -168,9 +221,11 @@ export default async function handler(
           retryAfter: backoffDelay,
         });
       } else {
-        // Max retries exceeded, mark as permanently failed
+        // Max retries exceeded or non-retryable error, mark as permanently failed
         await updateJobStatus(job.id, 'failed', {
-          error: `${error || 'No images generated'} (max retries exceeded)`,
+          error: shouldRetry 
+            ? `${error || 'No images generated'} (max retries exceeded)`
+            : (error || 'Failed to generate images'),
           retryCount,
         });
         
@@ -178,7 +233,7 @@ export default async function handler(
           success: false,
           jobId: job.id,
           error: error || 'No images generated',
-          maxRetriesExceeded: true,
+          maxRetriesExceeded: shouldRetry,
         });
       }
     }

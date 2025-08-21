@@ -51,26 +51,36 @@ export default function ImageGenerationProgress({
   // Start continuous processing when there are pending jobs
   useEffect(() => {
     if (pendingCount > 0 && !processingInterval) {
+      // Initial call immediately
+      fetch('/api/imagen/process-continuous', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ maxJobs: 2 }), // Process fewer jobs at once
+      }).then(result => result.json())
+        .then(data => console.log('Initial processor:', data.message))
+        .catch(error => console.error('Failed to process queue:', error));
+      
+      // Then set up interval for subsequent calls
       const interval = setInterval(async () => {
         try {
           const response = await fetch('/api/imagen/process-continuous', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ maxJobs: 3 }),
+            body: JSON.stringify({ maxJobs: 2 }), // Process fewer jobs at once
           });
           
           const result = await response.json();
           console.log('Continuous processor:', result.message);
           
           // Stop if no more jobs
-          if (result.processedCount === 0) {
+          if (result.processedCount === 0 && pendingCount === 0) {
             clearInterval(interval);
             setProcessingInterval(null);
           }
         } catch (error) {
           console.error('Failed to process queue:', error);
         }
-      }, 5000); // Run every 5 seconds
+      }, 15000); // Run every 15 seconds (was 5) to respect rate limits
       
       setProcessingInterval(interval);
     }

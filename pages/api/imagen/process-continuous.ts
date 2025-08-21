@@ -1,12 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { imagenRateLimiter } from '@/lib/imagen/rate-limiter';
 
 /**
  * Continuous image queue processor
  * This endpoint processes multiple jobs and is designed to be called periodically
  */
 
-const MAX_JOBS_PER_RUN = 5;
-const PROCESSING_INTERVAL = 2000; // 2 seconds between jobs
+const MAX_JOBS_PER_RUN = 3; // Reduced to avoid overwhelming rate limits
+const MIN_PROCESSING_INTERVAL = 6000; // Minimum 6 seconds between jobs for rate limiting
 
 export default async function handler(
   req: NextApiRequest,
@@ -23,6 +24,20 @@ export default async function handler(
     const results = [];
     
     for (let i = 0; i < maxJobs; i++) {
+      // Check rate limiter before processing
+      const waitTime = imagenRateLimiter.getWaitTimeMs();
+      if (waitTime > 0) {
+        console.log(`Rate limiter requires ${waitTime}ms wait, skipping batch`);
+        
+        // If we need to wait more than 30 seconds, stop processing this batch
+        if (waitTime > 30000) {
+          break;
+        }
+        
+        // Otherwise wait before processing
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+      
       // Call the single job processor
       const response = await fetch(
         `${req.headers.origin || 'http://localhost:3001'}/api/imagen/process-queue`,
@@ -42,9 +57,14 @@ export default async function handler(
       processedCount += result.processed || 0;
       results.push(result);
       
-      // Wait between jobs to avoid rate limiting
-      if (i < maxJobs - 1 && result.processed > 0) {
-        await new Promise(resolve => setTimeout(resolve, PROCESSING_INTERVAL));
+      // If job was rate limited, add extra delay
+      if (result.willRetry && result.retryAfter) {
+        const extraDelay = Math.min(result.retryAfter, 30000);
+        console.log(`Job was rate limited, adding ${extraDelay}ms delay`);
+        await new Promise(resolve => setTimeout(resolve, extraDelay));
+      } else if (i < maxJobs - 1 && result.processed > 0) {
+        // Normal interval between successful jobs
+        await new Promise(resolve => setTimeout(resolve, MIN_PROCESSING_INTERVAL));
       }
     }
     
