@@ -7,23 +7,23 @@ import { Coordinates } from '@/lib/models/coordinates';
  * PowerPoint Export Service using pptxgenjs
  * 
  * Key Features:
- * 1. Exports slides in exact 1920x1080 pixel dimensions
- * 2. Uses 96 DPI standard for PowerPoint conversion
+ * 1. Exports slides in 16:9 aspect ratio (1920x1080)
+ * 2. Uses built-in LAYOUT_16x9 for proper PowerPoint compatibility
  * 3. Maintains pixel-perfect positioning from web canvas
  * 
  * Coordinate Mapping:
- * - 1920 pixels → 20 inches width (at 96 DPI)
- * - 1080 pixels → 11.25 inches height (at 96 DPI)
- * - Conversion factor: 20/1920 = 0.0104167 inches per pixel
+ * - 1920 pixels → 10 inches width
+ * - 1080 pixels → 5.625 inches height
+ * - Conversion factor: 10/1920 = 0.00520833 inches per pixel
  * 
- * This ensures the PowerPoint slides have the exact same 1920x1080
- * aspect ratio and dimensions as the web presentation.
+ * This ensures the PowerPoint slides maintain the correct 16:9
+ * aspect ratio matching our 1920x1080 web presentation.
  */
 
 export class PptxExporter {
   private pptx: PptxGenJS;
-  private readonly SLIDE_WIDTH_INCHES = 20;  // 1920px at 96 DPI
-  private readonly SLIDE_HEIGHT_INCHES = 11.25;  // 1080px at 96 DPI
+  private readonly SLIDE_WIDTH_INCHES = 10;  // Standard 16:9 width
+  private readonly SLIDE_HEIGHT_INCHES = 5.625;  // Standard 16:9 height
   private readonly CANVAS_WIDTH = 1920;
   private readonly CANVAS_HEIGHT = 1080;
   
@@ -33,13 +33,8 @@ export class PptxExporter {
   constructor() {
     this.pptx = new PptxGenJS();
     
-    // Set slide size to exact 1920x1080 pixels (at 96 DPI)
-    this.pptx.defineLayout({
-      name: 'CUSTOM_1920x1080',
-      width: this.SLIDE_WIDTH_INCHES,
-      height: this.SLIDE_HEIGHT_INCHES
-    });
-    this.pptx.layout = 'CUSTOM_1920x1080';
+    // Use the built-in 16:9 layout for proper aspect ratio
+    this.pptx.layout = 'LAYOUT_16x9';
   }
 
   /**
