@@ -8,7 +8,7 @@ import {
   DocumentData 
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
-import { ImageStyle } from '@/lib/server/imagen';
+import { ImageStyle } from '@/lib/constants/image-styles';
 
 export interface ImageGenerationStatus {
   total: number;

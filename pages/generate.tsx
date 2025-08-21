@@ -36,10 +36,11 @@ import {
   ViewCarousel as SlidesIcon,
   Image as ImageIcon,
   Palette as PaletteIcon,
+  GridOn,
 } from '@mui/icons-material';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/router';
-import { IMAGE_STYLES, ImageStyle } from '@/lib/server/imagen';
+import { IMAGE_STYLES, ImageStyle } from '@/lib/constants/image-styles';
 
 interface GenerationParams {
   topic: string;

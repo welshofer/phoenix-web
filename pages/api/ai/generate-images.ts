@@ -3,10 +3,8 @@ import {
   queueImageGeneration,
   getImageGenerationStatus,
   cancelImageGeneration,
-  ImagePriority,
-  ImageStyle,
-  IMAGE_STYLES,
 } from '@/lib/server/imagen';
+import { ImageStyle, IMAGE_STYLES, ImagePriority } from '@/lib/constants/image-styles';
 
 /**
  * API endpoint for async image generation with Imagen 4.0

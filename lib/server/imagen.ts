@@ -12,14 +12,19 @@ import {
   getDocs,
   Timestamp
 } from 'firebase/firestore';
+import { ImageStyle, IMAGE_STYLES, ImagePriority } from '@/lib/constants/image-styles';
 
 /**
  * Imagen 4.0 Image Generation Service
  * Matches the macOS implementation with the same model and configuration
  */
 
-// Image styles from macOS app
-export const IMAGE_STYLES = {
+// Re-export for backward compatibility
+export { IMAGE_STYLES, ImagePriority };
+export type { ImageStyle };
+
+// Legacy styles mapping (if needed)
+const LEGACY_STYLES = {
   photorealistic: "photorealistic, high quality, professional photography, sharp focus, detailed",
   pencilSketch: "pencil sketch, hand drawn, artistic sketch, graphite drawing, black and white",
   charcoalSketch: "charcoal drawing, black and white sketch, smudged shading, textured paper, bold strokes, high contrast, artistic style",
@@ -68,16 +73,6 @@ export const IMAGE_STYLES = {
   sepia: "photorealistic, sepia toned, vintage photography, warm brown tones, sharp detail, professional quality",
   noctilux: "50mm f/1.4 portrait, extreme shallow DOF, swirled bokeh balls, tack sharp focal plane, smooth focus falloff, natural color grading, fine grain structure, medium format quality, rangefinder framing, Leica signature rendering, creamy background separation, subtle optical vignetting, high micro-contrast, organic tonal curve"
 } as const;
-
-export type ImageStyle = keyof typeof IMAGE_STYLES;
-
-// Priority levels matching macOS app
-export enum ImagePriority {
-  LOW = 0,
-  NORMAL = 1,
-  HIGH = 2,
-  URGENT = 3
-}
 
 // Image generation request
 export interface ImageRequest {

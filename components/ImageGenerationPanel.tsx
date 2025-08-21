@@ -43,7 +43,7 @@ import {
   Visibility,
 } from '@mui/icons-material';
 import { useImageGeneration } from '@/hooks/useImageGeneration';
-import { IMAGE_STYLES, ImageStyle } from '@/lib/server/imagen';
+import { IMAGE_STYLES, ImageStyle } from '@/lib/constants/image-styles';
 
 interface ImageGenerationPanelProps {
   presentationId: string;
