@@ -149,6 +149,10 @@ export default function GeneratePage() {
           console.log('Presentation saved with ID:', presentationId);
           
           // Queue image generation if requested
+          console.log('Image generation params:', { 
+            generateImages: params.generateImages, 
+            imageStyle: params.imageStyle 
+          });
           if (params.generateImages === 'now' && params.imageStyle) {
             try {
               // Prepare image generation requests from slides with image objects
@@ -166,6 +170,8 @@ export default function GeneratePage() {
                     priority: 1, // Normal priority
                   };
                 });
+              
+              console.log('Image requests prepared:', imageRequests.length, imageRequests);
               
               if (imageRequests.length > 0) {
                 // Queue image generation jobs asynchronously
