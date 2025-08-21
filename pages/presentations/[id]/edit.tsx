@@ -57,9 +57,11 @@ import {
   DragIndicator,
   Fullscreen,
   ExitToApp,
+  FileDownload as DownloadIcon,
 } from '@mui/icons-material';
 import { SlideRenderer } from '@/components/SlideRenderer';
 import ImageGenerationProgress from '@/components/ImageGenerationProgress';
+import ExportDialog from '@/components/ExportDialog';
 import { useAuth } from '@/hooks/useAuth';
 import {
   getPresentation,
@@ -109,6 +111,7 @@ export default function PresentationEditor() {
   const [saving, setSaving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [propertyTab, setPropertyTab] = useState(0);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as any });
   
@@ -604,6 +607,14 @@ export default function PresentationEditor() {
           >
             Present
           </Button>
+          
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={() => setExportDialogOpen(true)}
+          >
+            Export
+          </Button>
         </Paper>
 
         {/* Canvas Area */}
@@ -992,6 +1003,14 @@ export default function PresentationEditor() {
         </Alert>
       </Snackbar>
 
+      {/* Export Dialog */}
+      <ExportDialog
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
+        slides={slides}
+        presentationTitle={presentation?.title || 'Presentation'}
+      />
+      
       {/* Image Generation Progress */}
       {id && typeof id === 'string' && (
         <ImageGenerationProgress

@@ -39,6 +39,7 @@ import {
   ViewCarousel,
   AutoAwesome,
   Podcasts,
+  Download,
 } from '@mui/icons-material';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -49,6 +50,7 @@ import {
 } from '@/lib/firebase/presentations';
 import { format } from 'date-fns';
 import PodcastExportDialog from '@/components/PodcastExportDialog';
+import ExportDialog from '@/components/ExportDialog';
 
 export default function PresentationsPage() {
   const router = useRouter();
@@ -61,6 +63,7 @@ export default function PresentationsPage() {
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
   const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement | null; id: string | null }>({ el: null, id: null });
   const [podcastDialog, setPodcastDialog] = useState<{ open: boolean; id: string | null; title: string }>({ open: false, id: null, title: '' });
+  const [exportDialog, setExportDialog] = useState<{ open: boolean; presentation: PresentationDocument | null }>({ open: false, presentation: null });
 
   useEffect(() => {
     if (user) {
@@ -342,6 +345,19 @@ export default function PresentationsPage() {
           if (menuAnchor.id) {
             const presentation = presentations.find(p => p.metadata.id === menuAnchor.id);
             if (presentation) {
+              setExportDialog({ open: true, presentation });
+            }
+          }
+          setMenuAnchor({ el: null, id: null });
+        }}>
+          <Download sx={{ mr: 1 }} fontSize="small" />
+          Export (PDF/PowerPoint)
+        </MenuItem>
+        
+        <MenuItem onClick={() => {
+          if (menuAnchor.id) {
+            const presentation = presentations.find(p => p.metadata.id === menuAnchor.id);
+            if (presentation) {
               setPodcastDialog({ 
                 open: true, 
                 id: menuAnchor.id, 
@@ -392,6 +408,16 @@ export default function PresentationsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Export Dialog */}
+      {exportDialog.presentation && (
+        <ExportDialog
+          open={exportDialog.open}
+          onClose={() => setExportDialog({ open: false, presentation: null })}
+          slides={exportDialog.presentation.slides || []}
+          presentationTitle={exportDialog.presentation.metadata.title}
+        />
+      )}
       
       {/* Podcast Export Dialog */}
       {podcastDialog.id && (
