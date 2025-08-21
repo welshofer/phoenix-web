@@ -51,7 +51,7 @@ export default function ImageGenerationProgress({
   // Start continuous processing when there are pending jobs
   useEffect(() => {
     if (pendingCount > 0 && !processingInterval) {
-      // Process one job every 10 seconds
+      // Process one job every 12 seconds to be extra safe
       const interval = setInterval(async () => {
         try {
           const response = await fetch('/api/imagen/process-continuous', {
@@ -70,17 +70,9 @@ export default function ImageGenerationProgress({
         } catch (error) {
           console.error('Failed to process queue:', error);
         }
-      }, 10000); // Process one job every 10 seconds (safe for 20/min rate limit)
+      }, 12000); // Process one job every 12 seconds (5 per minute max)
       
       setProcessingInterval(interval);
-      
-      // Also do an initial call right away
-      fetch('/api/imagen/process-continuous', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      }).then(r => r.json())
-        .then(data => console.log('Initial process:', data.message))
-        .catch(console.error);
     }
     
     return () => {

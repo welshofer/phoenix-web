@@ -116,15 +116,10 @@ async function generateImageVariants(
       .map((prediction: any) => prediction.bytesBase64Encoded)
       .filter(Boolean);
     
-    // Upload to Firebase Storage
-    const basePath = generateImagePath(
-      job.presentationId, 
-      job.slideId, 
-      job.id
-    ).replace(/\.png$/, ''); // Remove extension for base path
-    
-    const imageUrls = await uploadMultipleImages(base64Images, basePath);
-    console.log(`Uploaded ${imageUrls.length} images to Firebase Storage`);
+    // For now, skip Firebase Storage upload and use data URLs
+    // Storage upload is failing due to server-side auth issues
+    const imageUrls = base64Images.map(base64 => `data:image/png;base64,${base64}`);
+    console.log(`Generated ${imageUrls.length} image data URLs`);
     
     return { 
       imageUrls, 
