@@ -101,9 +101,9 @@ Return JSON:
 
     console.log('Calling Gemini API...');
     
-    // Add timeout to prevent hanging
+    // Add timeout to prevent hanging (60 seconds for larger presentations)
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Gemini API timeout after 30 seconds')), 30000)
+      setTimeout(() => reject(new Error('Gemini API timeout after 60 seconds')), 60000)
     );
     
     const resultPromise = model.generateContent(prompt);
@@ -178,9 +178,15 @@ Return JSON:
       } else if (error.message.includes('quota')) {
         status = 429;
         message = 'API quota exceeded';
+      } else if (error.message.includes('timeout')) {
+        status = 504;
+        message = 'Generation took too long. Try reducing the number of slides.';
       } else if (error.message.includes('Invalid')) {
         status = 400;
         message = error.message;
+      } else {
+        // Include the actual error message for debugging
+        message = `Failed to generate presentation: ${error.message}`;
       }
     }
     
