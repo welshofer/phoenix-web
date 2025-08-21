@@ -16,6 +16,8 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@firebase/vertexai": "^1.2.4",
+    "@google-cloud/text-to-speech": "^6.2.0",
     "@google-cloud/vertexai": "^1.10.0",
     "@hello-pangea/dnd": "^18.0.1",
     "@mui/icons-material": "^7.3.1",
