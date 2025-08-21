@@ -27,7 +27,7 @@ import {
   Pause,
   PlayArrow,
 } from '@mui/icons-material';
-import { SlideRenderer } from '@/components/SlideRenderer';
+import { PresentationSlideRenderer } from '@/components/PresentationSlideRenderer';
 import { getPresentation } from '@/lib/firebase/presentations';
 import { Slide } from '@/lib/models/slide';
 
@@ -244,7 +244,7 @@ export default function PresentationMode() {
     // If we have converted slide objects, use the renderer
     if (currentSlide.objects && currentSlide.objects.length > 0) {
       return (
-        <SlideRenderer
+        <PresentationSlideRenderer
           slide={currentSlide}
           width={window.innerWidth}
           height={window.innerHeight}

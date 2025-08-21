@@ -127,8 +127,11 @@ export async function checkRateLimit(
         remaining: config.maxRequests - 1,
       };
     }
-  } catch (error) {
-    console.error('Rate limit check failed:', error);
+  } catch (error: any) {
+    // Only log if it's not a permission error (which is expected in dev)
+    if (error?.code !== 'permission-denied') {
+      console.error('Rate limit check failed:', error);
+    }
     // Allow on error but log it
     return { allowed: true, remaining: 0 };
   }
@@ -189,8 +192,11 @@ export async function trackUsage(
     if (metadata?.presentationId) {
       await logAnalytics(userId, type, metadata);
     }
-  } catch (error) {
-    console.error('Usage tracking failed:', error);
+  } catch (error: any) {
+    // Only log if it's not a permission error (which is expected in dev)
+    if (error?.code !== 'permission-denied') {
+      console.error('Usage tracking failed:', error);
+    }
     // Don't block on tracking errors
   }
 }
@@ -257,8 +263,11 @@ async function logAnalytics(
       timestamp: serverTimestamp(),
       ...metadata,
     });
-  } catch (error) {
-    console.error('Analytics logging failed:', error);
+  } catch (error: any) {
+    // Only log if it's not a permission error (which is expected in dev)
+    if (error?.code !== 'permission-denied') {
+      console.error('Analytics logging failed:', error);
+    }
   }
 }
 
@@ -275,8 +284,11 @@ export async function getUserUsage(userId: string): Promise<UserUsage | null> {
     }
     
     return usageDoc.data() as UserUsage;
-  } catch (error) {
-    console.error('Failed to get user usage:', error);
+  } catch (error: any) {
+    // Only log if it's not a permission error (which is expected in dev)
+    if (error?.code !== 'permission-denied') {
+      console.error('Failed to get user usage:', error);
+    }
     return null;
   }
 }
@@ -326,8 +338,11 @@ export async function checkDailyLimits(
       allowed: true,
       remaining: max - used,
     };
-  } catch (error) {
-    console.error('Daily limit check failed:', error);
+  } catch (error: any) {
+    // Only log if it's not a permission error (which is expected in dev)
+    if (error?.code !== 'permission-denied') {
+      console.error('Daily limit check failed:', error);
+    }
     return { allowed: true, remaining: 0 };
   }
 }

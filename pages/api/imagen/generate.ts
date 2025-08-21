@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { ImageStyle, IMAGE_STYLES } from '@/lib/constants/image-styles';
+import { uploadMultipleImages, generateImagePath } from '@/lib/firebase/storage';
 
 /**
  * Direct image generation using Vertex AI REST API
@@ -102,14 +103,30 @@ export default async function handler(
     // Process all variants
     console.log(`Received ${result.predictions.length} predictions from Imagen 2`);
     
-    const imageUrls = result.predictions.map((prediction: any, index: number) => {
-      if (!prediction.bytesBase64Encoded) {
-        console.warn(`No image data for variant ${index + 1}`);
-        return null;
-      }
-      console.log(`Variant ${index + 1}: Image data present (${prediction.bytesBase64Encoded.length} chars)`);
-      return `data:image/png;base64,${prediction.bytesBase64Encoded}`;
-    }).filter(Boolean);
+    // Extract base64 images
+    const base64Images = result.predictions
+      .map((prediction: any) => prediction.bytesBase64Encoded)
+      .filter(Boolean);
+    
+    // Upload to Firebase Storage if we have a presentationId and slideId
+    let imageUrls: string[];
+    const { presentationId, slideId } = req.body;
+    
+    if (presentationId && slideId) {
+      // Upload to storage for persistent URLs
+      const basePath = generateImagePath(
+        presentationId,
+        slideId,
+        `img_${Date.now()}`
+      ).replace(/\.png$/, '');
+      
+      imageUrls = await uploadMultipleImages(base64Images, basePath);
+      console.log(`Uploaded ${imageUrls.length} images to Firebase Storage`);
+    } else {
+      // Return data URLs for testing/preview
+      imageUrls = base64Images.map((base64: string) => `data:image/png;base64,${base64}`);
+      console.log(`Returning ${imageUrls.length} data URLs`);
+    }
     
     console.log(`Successfully processed ${imageUrls.length} image variants out of ${result.predictions.length} predictions`);
     

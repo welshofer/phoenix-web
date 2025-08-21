@@ -6,6 +6,7 @@ import {
 } from '@/lib/firebase/image-queue';
 import { IMAGE_STYLES } from '@/lib/constants/image-styles';
 import { withCircuitBreaker } from '@/lib/imagen/circuit-breaker';
+import { uploadMultipleImages, generateImagePath, dataUrlToBase64 } from '@/lib/firebase/storage';
 
 /**
  * Process image generation queue
@@ -73,11 +74,19 @@ async function generateImageVariants(
       throw new Error('No images generated');
     }
     
-    // Convert base64 to data URLs (in production, upload to storage)
-    const imageUrls = result.predictions
+    // Get base64 strings
+    const base64Images = result.predictions
       .map((pred: any) => pred.bytesBase64Encoded)
-      .filter(Boolean)
-      .map((base64: string) => `data:image/png;base64,${base64}`);
+      .filter(Boolean);
+    
+    // Upload to Firebase Storage
+    const basePath = generateImagePath(
+      job.presentationId, 
+      job.slideId, 
+      job.id
+    ).replace(/\.png$/, ''); // Remove extension for base path
+    
+    const imageUrls = await uploadMultipleImages(base64Images, basePath);
     
     return { imageUrls };
   } catch (error) {
