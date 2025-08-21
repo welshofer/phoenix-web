@@ -51,26 +51,16 @@ export default function ImageGenerationProgress({
   // Start continuous processing when there are pending jobs
   useEffect(() => {
     if (pendingCount > 0 && !processingInterval) {
-      // Initial call immediately
-      fetch('/api/imagen/process-continuous', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ maxJobs: 1 }), // Process only 1 job at a time
-      }).then(result => result.json())
-        .then(data => console.log('Initial processor:', data.message))
-        .catch(error => console.error('Failed to process queue:', error));
-      
-      // Then set up interval for subsequent calls
+      // Process one job every 10 seconds
       const interval = setInterval(async () => {
         try {
           const response = await fetch('/api/imagen/process-continuous', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ maxJobs: 1 }), // Process only 1 job at a time
           });
           
           const result = await response.json();
-          console.log('Continuous processor:', result.message);
+          console.log('Queue processor:', result.message);
           
           // Stop if no more jobs
           if (result.processedCount === 0 && pendingCount === 0) {
@@ -80,9 +70,17 @@ export default function ImageGenerationProgress({
         } catch (error) {
           console.error('Failed to process queue:', error);
         }
-      }, 20000); // Run every 20 seconds to respect strict rate limits
+      }, 10000); // Process one job every 10 seconds (safe for 20/min rate limit)
       
       setProcessingInterval(interval);
+      
+      // Also do an initial call right away
+      fetch('/api/imagen/process-continuous', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      }).then(r => r.json())
+        .then(data => console.log('Initial process:', data.message))
+        .catch(console.error);
     }
     
     return () => {

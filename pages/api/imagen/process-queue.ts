@@ -5,18 +5,21 @@ import {
   ImageGenerationJob 
 } from '@/lib/firebase/image-queue';
 import { IMAGE_STYLES } from '@/lib/constants/image-styles';
-import { withCircuitBreaker } from '@/lib/imagen/circuit-breaker';
-import { uploadMultipleImages, generateImagePath, dataUrlToBase64 } from '@/lib/firebase/storage';
-import { imagenRateLimiter } from '@/lib/imagen/rate-limiter';
+import { uploadMultipleImages, generateImagePath } from '@/lib/firebase/storage';
 
 /**
- * Process image generation queue
- * This endpoint should be called periodically (e.g., by a cron job or client polling)
+ * Process image generation queue - SIMPLIFIED VERSION
+ * Rate limit: 20 requests per minute = 1 request every 3 seconds
+ * We'll be conservative and do 1 every 9 seconds
  */
 
 const PROJECT_ID = 'phoenix-web-app';
 const LOCATION = 'us-central1';
 const MODEL = 'imagegeneration@006';
+
+// Track last request time globally
+let lastRequestTime = 0;
+const MIN_REQUEST_INTERVAL = 9000; // 9 seconds between requests
 
 async function getAccessToken(): Promise<string> {
   try {
@@ -37,46 +40,43 @@ async function generateImageVariants(
   job: ImageGenerationJob
 ): Promise<{ imageUrls: string[], fullPrompt: string, error?: string, shouldRetry?: boolean }> {
   try {
-    // Check rate limiter before making request
-    const waitTime = imagenRateLimiter.getWaitTimeMs();
-    if (waitTime > 0) {
-      console.log(`Rate limiter: waiting ${waitTime}ms before request`);
-      return {
-        imageUrls: [],
-        fullPrompt: '',
-        error: `Rate limited - waiting ${Math.ceil(waitTime / 1000)}s`,
-        shouldRetry: true
-      };
+    // Simple rate limiting - wait if needed
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastRequestTime;
+    
+    if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
+      const waitTime = MIN_REQUEST_INTERVAL - timeSinceLastRequest;
+      console.log(`Waiting ${waitTime}ms before next request to respect rate limit`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
     
-    // Try to consume a token
-    if (!imagenRateLimiter.consumeToken()) {
-      console.log('Rate limiter: no tokens available');
-      return {
-        imageUrls: [],
-        fullPrompt: '',
-        error: 'Rate limit exceeded - no tokens available',
-        shouldRetry: true
-      };
-    }
+    // Update last request time
+    lastRequestTime = Date.now();
     
+    // Get access token
     const accessToken = await getAccessToken();
+    
+    // Build prompt
     const stylePrompt = IMAGE_STYLES[job.style as keyof typeof IMAGE_STYLES] || IMAGE_STYLES.photorealistic;
     const prompt = `${job.description}, ${stylePrompt}`;
     
-    console.log(`Generating image for job ${job.id}, style: ${job.style}`);
+    console.log(`Processing job ${job.id}: ${prompt.substring(0, 100)}...`);
     
+    // Call Vertex AI - EXACTLY like the working test endpoint
     const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${MODEL}:predict`;
     
     const requestBody = {
-      instances: [{ prompt }],
+      instances: [
+        {
+          prompt: prompt,
+        }
+      ],
       parameters: {
-        sampleCount: 3,
+        sampleCount: 3, // Generate 3 variants
         aspectRatio: '16:9',
       }
     };
     
-    const startTime = Date.now();
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
@@ -86,35 +86,22 @@ async function generateImageVariants(
       body: JSON.stringify(requestBody),
     });
     
-    const responseTime = Date.now() - startTime;
-    console.log(`Imagen API response for job ${job.id}: ${response.status} in ${responseTime}ms`);
-    
-    // Handle rate limiting
-    if (response.status === 429) {
-      const retryAfter = response.headers.get('retry-after');
-      const retryMs = retryAfter ? parseInt(retryAfter) * 1000 : undefined;
-      
-      imagenRateLimiter.handleRateLimitError(retryMs);
-      
-      const errorText = await response.text().catch(() => 'Rate limited');
-      console.error('Rate limited by Imagen API:', errorText);
-      
-      return {
-        imageUrls: [],
-        fullPrompt: prompt,
-        error: 'Rate limited by API - will retry with backoff',
-        shouldRetry: true
-      };
-    }
-    
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Vertex AI error:', errorText);
-      throw new Error(`Image generation failed: ${response.status}`);
+      
+      // If rate limited, we should retry
+      if (response.status === 429) {
+        return {
+          imageUrls: [],
+          fullPrompt: prompt,
+          error: 'Rate limited - will retry',
+          shouldRetry: true
+        };
+      }
+      
+      throw new Error(`Vertex AI returned ${response.status}: ${errorText}`);
     }
-    
-    // Success - notify rate limiter
-    imagenRateLimiter.handleSuccess();
     
     const result = await response.json();
     
@@ -122,9 +109,11 @@ async function generateImageVariants(
       throw new Error('No images generated');
     }
     
-    // Get base64 strings
+    console.log(`Received ${result.predictions.length} predictions from Imagen`);
+    
+    // Extract base64 images
     const base64Images = result.predictions
-      .map((pred: any) => pred.bytesBase64Encoded)
+      .map((prediction: any) => prediction.bytesBase64Encoded)
       .filter(Boolean);
     
     // Upload to Firebase Storage
@@ -135,8 +124,13 @@ async function generateImageVariants(
     ).replace(/\.png$/, ''); // Remove extension for base path
     
     const imageUrls = await uploadMultipleImages(base64Images, basePath);
+    console.log(`Uploaded ${imageUrls.length} images to Firebase Storage`);
     
-    return { imageUrls, fullPrompt: prompt };
+    return { 
+      imageUrls, 
+      fullPrompt: prompt 
+    };
+    
   } catch (error) {
     console.error('Error generating images:', error);
     return { 
@@ -173,77 +167,50 @@ export default async function handler(
     // Mark job as processing
     await updateJobStatus(job.id, 'processing');
     
-    // Generate images with circuit breaker protection
-    let imageUrls: string[] = [];
-    let fullPrompt: string = '';
-    let error: string | undefined;
-    let shouldRetry: boolean = false;
+    // Generate images - SIMPLE, no circuit breaker bullshit
+    const result = await generateImageVariants(job);
     
-    try {
-      const result = await withCircuitBreaker(
-        () => generateImageVariants(job),
-        { imageUrls: [], fullPrompt: '', error: 'Circuit breaker open - service unavailable', shouldRetry: true }
-      );
-      imageUrls = result.imageUrls;
-      fullPrompt = result.fullPrompt;
-      error = result.error;
-      shouldRetry = result.shouldRetry || false;
-    } catch (circuitError) {
-      error = circuitError instanceof Error ? circuitError.message : 'Circuit breaker error';
-      shouldRetry = true;
-      console.error('Circuit breaker error:', circuitError);
-    }
-    
-    if (error || imageUrls.length === 0) {
+    if (result.error || result.imageUrls.length === 0) {
       const retryCount = (job.retryCount || 0) + 1;
-      const maxRetries = 5; // Increased from 3 to handle rate limiting better
+      const maxRetries = 3;
       
-      if (shouldRetry && retryCount < maxRetries) {
-        // Calculate backoff delay with jitter
-        const baseDelay = Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s, 16s, 32s
-        const jitter = Math.random() * 1000; // Add 0-1s jitter
-        const backoffDelay = Math.min(baseDelay + jitter, 60000); // Cap at 60s
-        
+      if (result.shouldRetry && retryCount < maxRetries) {
+        // Simple retry with delay
         await updateJobStatus(job.id, 'pending', {
-          error: error || 'No images generated',
+          error: result.error || 'No images generated',
           retryCount,
-          // Add a retry timestamp for delayed processing
-          retryAfter: new Date(Date.now() + backoffDelay),
         });
         
-        console.log(`Job ${job.id} will retry (attempt ${retryCount}/${maxRetries}) after ${backoffDelay}ms`);
+        console.log(`Job ${job.id} will retry (attempt ${retryCount}/${maxRetries})`);
         
         return res.status(200).json({
           success: false,
           jobId: job.id,
-          error: error || 'No images generated',
+          error: result.error || 'No images generated',
           willRetry: true,
           retryCount,
-          retryAfter: backoffDelay,
         });
       } else {
-        // Max retries exceeded or non-retryable error, mark as permanently failed
+        // Max retries exceeded, mark as failed
         await updateJobStatus(job.id, 'failed', {
-          error: shouldRetry 
-            ? `${error || 'No images generated'} (max retries exceeded)`
-            : (error || 'Failed to generate images'),
+          error: result.error || 'Failed to generate images',
           retryCount,
         });
         
         return res.status(200).json({
           success: false,
           jobId: job.id,
-          error: error || 'No images generated',
-          maxRetriesExceeded: shouldRetry,
+          error: result.error || 'No images generated',
+          maxRetriesExceeded: true,
         });
       }
     }
     
-    // Mark as completed with image URLs and prompt
+    // Success! Mark as completed with image URLs and prompt
     await updateJobStatus(job.id, 'completed', {
-      imageUrls,
+      imageUrls: result.imageUrls,
       heroIndex: 0, // Default first image as hero
-      fullPrompt, // Store the complete prompt used
+      fullPrompt: result.fullPrompt, // Store the complete prompt used
     });
     
     // Also update the presentation slide with the new images
