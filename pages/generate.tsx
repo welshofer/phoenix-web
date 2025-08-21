@@ -156,26 +156,13 @@ export default function GeneratePage() {
                 });
               
               if (imageRequests.length > 0) {
-                // Queue the image generation
-                const response = await fetch('/api/ai/generate-images', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    presentationId,
-                    userId: user.uid,
-                    images: imageRequests,
-                  }),
-                });
+                // For now, just log that we would generate images
+                // The actual generation will happen in the editor
+                console.log('Would generate', imageRequests.length, 'images with style:', params.imageStyle);
+                setSuccess(`Presentation created! You can generate ${imageRequests.length} images in the editor.`);
                 
-                if (response.ok) {
-                  const result = await response.json();
-                  console.log('Queued', result.requestIds?.length || 0, 'images for generation');
-                  setSuccess(`Presentation created! ${imageRequests.length} images are being generated in the background.`);
-                } else {
-                  console.error('Failed to queue image generation');
-                }
+                // Store the image style preference in localStorage for the editor
+                localStorage.setItem('defaultImageStyle', params.imageStyle || 'photorealistic');
               }
             } catch (error) {
               console.error('Error queueing image generation:', error);
