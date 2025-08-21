@@ -24,11 +24,13 @@ import { useImageGeneration } from '@/hooks/useImageGeneration';
 interface ImageGenerationProgressProps {
   presentationId: string;
   onImagesReady?: (slideImages: Map<string, string[]>, jobData?: any[]) => void;
+  compact?: boolean;  // For showing in header/toolbar
 }
 
 export default function ImageGenerationProgress({ 
   presentationId,
-  onImagesReady 
+  onImagesReady,
+  compact = false
 }: ImageGenerationProgressProps) {
   const [expanded, setExpanded] = React.useState(true);
   const [processingInterval, setProcessingInterval] = React.useState<NodeJS.Timeout | null>(null);
@@ -90,6 +92,25 @@ export default function ImageGenerationProgress({
 
   if (totalCount === 0) {
     return null;
+  }
+
+  // Compact view for toolbar/header
+  if (compact) {
+    return (
+      <Chip
+        icon={isGenerating ? <ImageIcon /> : <CheckIcon />}
+        label={`Images: ${completedCount}/${totalCount}`}
+        size="small"
+        color={isGenerating ? 'primary' : completedCount === totalCount ? 'success' : 'default'}
+        variant={isGenerating ? 'filled' : 'outlined'}
+        sx={{
+          animation: isGenerating ? 'pulse 2s infinite' : 'none',
+          '& .MuiChip-icon': {
+            animation: isGenerating ? 'spin 2s linear infinite' : 'none',
+          }
+        }}
+      />
+    );
   }
 
   const handleRetryFailed = async () => {
@@ -225,6 +246,10 @@ export default function ImageGenerationProgress({
           0% { opacity: 1; }
           50% { opacity: 0.5; }
           100% { opacity: 1; }
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
         }
       `}</style>
     </Box>

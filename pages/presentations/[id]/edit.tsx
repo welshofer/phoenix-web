@@ -571,6 +571,14 @@ export default function PresentationEditor() {
           
           <Box sx={{ flexGrow: 1 }} />
           
+          {/* Image Generation Status */}
+          <ImageGenerationProgress 
+            presentationId={id as string} 
+            compact={true}
+          />
+          
+          <Divider orientation="vertical" flexItem />
+          
           <Typography variant="body2">
             Slide {currentSlideIndex + 1} of {slides.length}
           </Typography>
