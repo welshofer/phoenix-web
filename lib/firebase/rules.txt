@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users can only read/write their own profile
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Presentations owned by or shared with the user
+      match /presentations/{presentationId} {
+        allow read: if request.auth != null && 
+          (request.auth.uid == userId || 
+           resource.data.collaborators.hasAny([request.auth.uid]) ||
+           resource.data.isPublic == true);
+        allow write: if request.auth != null && 
+          (request.auth.uid == userId ||
+           resource.data.collaborators.hasAny([request.auth.uid]));
+        
+        // Slides within presentations
+        match /slides/{slideId} {
+          allow read: if request.auth != null && 
+            get(/databases/$(database)/documents/users/$(userId)/presentations/$(presentationId)).data.owner == request.auth.uid ||
+            get(/databases/$(database)/documents/users/$(userId)/presentations/$(presentationId)).data.collaborators.hasAny([request.auth.uid]) ||
+            get(/databases/$(database)/documents/users/$(userId)/presentations/$(presentationId)).data.isPublic == true;
+          allow write: if request.auth != null && 
+            (get(/databases/$(database)/documents/users/$(userId)/presentations/$(presentationId)).data.owner == request.auth.uid ||
+             get(/databases/$(database)/documents/users/$(userId)/presentations/$(presentationId)).data.collaborators.hasAny([request.auth.uid]));
+        }
+      }
+    }
+  }
+}
