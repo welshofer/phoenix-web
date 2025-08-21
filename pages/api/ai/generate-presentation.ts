@@ -101,9 +101,9 @@ Return JSON:
 
     console.log('Calling Gemini API...');
     
-    // Add timeout to prevent hanging (60 seconds for larger presentations)
+    // Add timeout to prevent hanging (7 minutes for very large presentations)
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Gemini API timeout after 60 seconds')), 60000)
+      setTimeout(() => reject(new Error('Gemini API timeout after 7 minutes')), 420000)
     );
     
     const resultPromise = model.generateContent(prompt);
