@@ -23,7 +23,7 @@ import { ImageStyle, IMAGE_STYLES, ImagePriority } from '@/lib/constants/image-s
 export { IMAGE_STYLES, ImagePriority };
 export type { ImageStyle };
 
-// Legacy styles mapping (if needed)
+// These are the EXACT 45 styles from the macOS implementation
 const LEGACY_STYLES = {
   photorealistic: "photorealistic, high quality, professional photography, sharp focus, detailed",
   pencilSketch: "pencil sketch, hand drawn, artistic sketch, graphite drawing, black and white",
