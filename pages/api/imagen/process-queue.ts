@@ -5,6 +5,7 @@ import {
   ImageGenerationJob 
 } from '@/lib/firebase/image-queue';
 import { IMAGE_STYLES } from '@/lib/constants/image-styles';
+import { withCircuitBreaker } from '@/lib/imagen/circuit-breaker';
 
 /**
  * Process image generation queue
@@ -113,24 +114,61 @@ export default async function handler(
     // Mark job as processing
     await updateJobStatus(job.id, 'processing');
     
-    // Generate images
-    const { imageUrls, error } = await generateImageVariants(
-      job.description,
-      job.style
-    );
+    // Generate images with circuit breaker protection
+    let imageUrls: string[] = [];
+    let error: string | undefined;
+    
+    try {
+      const result = await withCircuitBreaker(
+        () => generateImageVariants(job.description, job.style),
+        { imageUrls: [], error: 'Circuit breaker open - service unavailable' }
+      );
+      imageUrls = result.imageUrls;
+      error = result.error;
+    } catch (circuitError) {
+      error = circuitError instanceof Error ? circuitError.message : 'Circuit breaker error';
+      console.error('Circuit breaker error:', circuitError);
+    }
     
     if (error || imageUrls.length === 0) {
-      // Mark as failed
-      await updateJobStatus(job.id, 'failed', {
-        error: error || 'No images generated',
-        retryCount: (job.retryCount || 0) + 1,
-      });
+      const retryCount = (job.retryCount || 0) + 1;
+      const maxRetries = 3;
       
-      return res.status(200).json({
-        success: false,
-        jobId: job.id,
-        error: error || 'No images generated',
-      });
+      if (retryCount < maxRetries) {
+        // Retry with exponential backoff
+        const backoffDelay = Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s
+        
+        await updateJobStatus(job.id, 'pending', {
+          error: error || 'No images generated',
+          retryCount,
+          // Add a retry timestamp for delayed processing
+          retryAfter: new Date(Date.now() + backoffDelay),
+        });
+        
+        console.log(`Job ${job.id} will retry (attempt ${retryCount}/${maxRetries}) after ${backoffDelay}ms`);
+        
+        return res.status(200).json({
+          success: false,
+          jobId: job.id,
+          error: error || 'No images generated',
+          willRetry: true,
+          retryCount,
+          retryAfter: backoffDelay,
+        });
+      } else {
+        // Max retries exceeded, mark as permanently failed
+        await updateJobStatus(job.id, 'failed', {
+          error: `${error || 'No images generated'} (max retries exceeded)`,
+          retryCount,
+        });
+        
+        return res.status(200).json({
+          success: false,
+          jobId: job.id,
+          error: error || 'No images generated',
+          maxRetriesExceeded: true,
+        });
+      }
     }
     
     // Mark as completed with image URLs

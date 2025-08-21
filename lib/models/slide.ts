@@ -48,6 +48,11 @@ export interface ImageObject extends SlideObject {
     saturation?: number;
     blur?: number;
   };
+  // Multiple image variants support
+  variants?: string[];      // Array of alternative image URLs
+  heroIndex?: number;       // Which variant is the primary (default 0)
+  cycleOnPlayback?: boolean; // Auto-cycle through variants during presentation
+  cycleInterval?: number;    // Milliseconds between cycles (default 5000)
 }
 
 // Video object

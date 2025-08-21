@@ -59,6 +59,7 @@ import {
   ExitToApp,
 } from '@mui/icons-material';
 import { SlideRenderer } from '@/components/SlideRenderer';
+import ImageGenerationProgress from '@/components/ImageGenerationProgress';
 import { useAuth } from '@/hooks/useAuth';
 import {
   getPresentation,
@@ -741,6 +742,92 @@ export default function PresentationEditor() {
                     value={(selectedObject as ImageObject).alt}
                     onChange={(e) => updateObject(selectedObject.id, { alt: e.target.value })}
                   />
+                  
+                  {/* Image Variants Controls */}
+                  {(selectedObject as ImageObject).variants && (selectedObject as ImageObject).variants!.length > 0 && (
+                    <>
+                      <Divider sx={{ my: 2 }} />
+                      <Typography variant="subtitle2" gutterBottom>
+                        Image Variants ({(selectedObject as ImageObject).variants!.length} available)
+                      </Typography>
+                      
+                      <FormControl fullWidth margin="normal">
+                        <InputLabel>Hero Image</InputLabel>
+                        <Select
+                          value={(selectedObject as ImageObject).heroIndex || 0}
+                          label="Hero Image"
+                          onChange={(e) => {
+                            const heroIndex = Number(e.target.value);
+                            const imageObj = selectedObject as ImageObject;
+                            updateObject(selectedObject.id, { 
+                              heroIndex,
+                              src: imageObj.variants![heroIndex] || imageObj.src
+                            });
+                          }}
+                        >
+                          {(selectedObject as ImageObject).variants!.map((_, index) => (
+                            <MenuItem key={index} value={index}>
+                              Variant {index + 1}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                      
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={(selectedObject as ImageObject).cycleOnPlayback || false}
+                            onChange={(e) => updateObject(selectedObject.id, { cycleOnPlayback: e.target.checked })}
+                          />
+                        }
+                        label="Cycle variants during presentation"
+                        sx={{ mt: 1 }}
+                      />
+                      
+                      {(selectedObject as ImageObject).cycleOnPlayback && (
+                        <TextField
+                          fullWidth
+                          margin="normal"
+                          label="Cycle Interval (ms)"
+                          type="number"
+                          value={(selectedObject as ImageObject).cycleInterval || 5000}
+                          onChange={(e) => updateObject(selectedObject.id, { cycleInterval: Number(e.target.value) })}
+                          helperText="Time between image changes in milliseconds"
+                        />
+                      )}
+                      
+                      {/* Preview thumbnails */}
+                      <Box sx={{ mt: 2 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Click to preview variants:
+                        </Typography>
+                        <Box sx={{ display: 'flex', gap: 1, mt: 1, flexWrap: 'wrap' }}>
+                          {(selectedObject as ImageObject).variants!.map((url, index) => (
+                            <Box
+                              key={index}
+                              sx={{
+                                width: 60,
+                                height: 40,
+                                backgroundImage: `url(${url})`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                                border: index === ((selectedObject as ImageObject).heroIndex || 0) ? '2px solid primary.main' : '1px solid grey.300',
+                                borderRadius: 1,
+                                cursor: 'pointer',
+                                '&:hover': { opacity: 0.8 }
+                              }}
+                              onClick={() => {
+                                updateObject(selectedObject.id, { 
+                                  heroIndex: index,
+                                  src: url
+                                });
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      </Box>
+                    </>
+                  )}
                 </>
               )}
               
@@ -855,6 +942,37 @@ export default function PresentationEditor() {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Image Generation Progress */}
+      {id && typeof id === 'string' && (
+        <ImageGenerationProgress
+          presentationId={id}
+          onImagesReady={(slideImages) => {
+            // Update slides with generated images
+            const updatedSlides = [...slides];
+            slideImages.forEach((imageUrls, slideId) => {
+              const slideIndex = updatedSlides.findIndex(s => s.id === slideId);
+              if (slideIndex !== -1) {
+                const slide = updatedSlides[slideIndex];
+                // Find image objects in the slide and update them
+                slide.objects = slide.objects.map(obj => {
+                  if (obj.type === 'image') {
+                    return {
+                      ...obj,
+                      src: imageUrls[0] || obj.src,
+                      variants: imageUrls,
+                      heroIndex: 0,
+                    } as ImageObject;
+                  }
+                  return obj;
+                });
+              }
+            });
+            addToHistory(updatedSlides);
+            showSnackbar('Images generated successfully!', 'success');
+          }}
+        />
+      )}
     </Box>
   );
 }
