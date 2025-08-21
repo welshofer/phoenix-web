@@ -27,7 +27,6 @@ import {
   Slideshow as PowerPointIcon,
 } from '@mui/icons-material';
 import { Slide } from '@/lib/models/slide';
-import { PptxExporter } from '@/lib/export/pptx-export';
 import { PDFExporter, PDFLayout, PDFExportOptions } from '@/lib/export/pdf-export';
 
 interface ExportDialogProps {
@@ -81,29 +80,47 @@ export default function ExportDialog({
   };
 
   const exportPowerPoint = async () => {
-    const exporter = new PptxExporter();
-    
-    // Convert slides to PowerPoint
-    for (let i = 0; i < slides.length; i++) {
-      const slide = slides[i];
-      await exporter.exportSlide(slide);
-      setProgress((i + 1) / slides.length);
+    try {
+      setProgress(0.2);
+      
+      // Call the API endpoint
+      const response = await fetch('/api/export/powerpoint', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          slides,
+          presentationTitle,
+        }),
+      });
+      
+      setProgress(0.6);
+      
+      if (!response.ok) {
+        throw new Error('Failed to export PowerPoint');
+      }
+      
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      setProgress(0.9);
+      
+      // Download the file
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${presentationTitle}.pptx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      setProgress(1);
+    } catch (error) {
+      console.error('PowerPoint export error:', error);
+      throw error;
     }
-    
-    // Save the presentation
-    const blob = await exporter.save();
-    
-    // Download the file
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${presentationTitle}.pptx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    setProgress(1);
   };
 
   const exportPDF = async () => {
