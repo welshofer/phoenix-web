@@ -22,6 +22,7 @@ export interface ImageGenerationJob {
   slideId: string;
   description: string;
   style: string;
+  fullPrompt?: string; // Complete prompt sent to Imagen (description + style)
   status: 'pending' | 'processing' | 'completed' | 'failed';
   priority: number;
   imageUrls?: string[]; // Array of variant URLs

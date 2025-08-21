@@ -247,7 +247,9 @@ function createImagePlaceholder(
   description: string,
   coordinates: { x: number; y: number; width: number; height: number },
   imageUrls?: string[],
-  heroIndex?: number
+  heroIndex?: number,
+  style?: string,
+  fullPrompt?: string
 ): ImageObject {
   return {
     id: uuidv4(),
@@ -260,6 +262,10 @@ function createImagePlaceholder(
     variants: imageUrls,
     heroIndex: heroIndex || 0,
     cycleOnPlayback: false, // Default to not cycling
+    generationDescription: description, // Store clean description
+    generationStyle: style,
+    generationPrompt: fullPrompt,
+    generatedAt: imageUrls ? new Date() : undefined,
   };
 }
 

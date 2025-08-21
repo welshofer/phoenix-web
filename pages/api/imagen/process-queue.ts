@@ -35,7 +35,7 @@ async function getAccessToken(): Promise<string> {
 async function generateImageVariants(
   description: string,
   style: string
-): Promise<{ imageUrls: string[], error?: string }> {
+): Promise<{ imageUrls: string[], fullPrompt: string, error?: string }> {
   try {
     const accessToken = await getAccessToken();
     const stylePrompt = IMAGE_STYLES[style as keyof typeof IMAGE_STYLES] || IMAGE_STYLES.photorealistic;
@@ -88,11 +88,12 @@ async function generateImageVariants(
     
     const imageUrls = await uploadMultipleImages(base64Images, basePath);
     
-    return { imageUrls };
+    return { imageUrls, fullPrompt: prompt };
   } catch (error) {
     console.error('Error generating images:', error);
     return { 
       imageUrls: [], 
+      fullPrompt: '',
       error: error instanceof Error ? error.message : 'Failed to generate images' 
     };
   }
@@ -125,14 +126,16 @@ export default async function handler(
     
     // Generate images with circuit breaker protection
     let imageUrls: string[] = [];
+    let fullPrompt: string = '';
     let error: string | undefined;
     
     try {
       const result = await withCircuitBreaker(
         () => generateImageVariants(job.description, job.style),
-        { imageUrls: [], error: 'Circuit breaker open - service unavailable' }
+        { imageUrls: [], fullPrompt: '', error: 'Circuit breaker open - service unavailable' }
       );
       imageUrls = result.imageUrls;
+      fullPrompt = result.fullPrompt;
       error = result.error;
     } catch (circuitError) {
       error = circuitError instanceof Error ? circuitError.message : 'Circuit breaker error';
@@ -180,10 +183,11 @@ export default async function handler(
       }
     }
     
-    // Mark as completed with image URLs
+    // Mark as completed with image URLs and prompt
     await updateJobStatus(job.id, 'completed', {
       imageUrls,
       heroIndex: 0, // Default first image as hero
+      fullPrompt, // Store the complete prompt used
     });
     
     // Also update the presentation slide with the new images

@@ -53,6 +53,11 @@ export interface ImageObject extends SlideObject {
   heroIndex?: number;       // Which variant is the primary (default 0)
   cycleOnPlayback?: boolean; // Auto-cycle through variants during presentation
   cycleInterval?: number;    // Milliseconds between cycles (default 5000)
+  // Generation metadata
+  generationPrompt?: string;  // Full prompt used to generate the image
+  generationStyle?: string;   // Style used (e.g., 'photorealistic', 'watercolor')
+  generationDescription?: string; // Original description before style was added
+  generatedAt?: Date;        // When the image was generated
 }
 
 // Video object

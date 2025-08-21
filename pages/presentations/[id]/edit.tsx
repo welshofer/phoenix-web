@@ -828,6 +828,55 @@ export default function PresentationEditor() {
                       </Box>
                     </>
                   )}
+                  
+                  {/* Generation Metadata */}
+                  {(selectedObject as ImageObject).generationDescription && (
+                    <>
+                      <Divider sx={{ my: 2 }} />
+                      <Typography variant="subtitle2" gutterBottom>
+                        Generation Details
+                      </Typography>
+                      
+                      <TextField
+                        fullWidth
+                        margin="normal"
+                        label="Description"
+                        value={(selectedObject as ImageObject).generationDescription}
+                        multiline
+                        rows={2}
+                        InputProps={{ readOnly: true }}
+                      />
+                      
+                      {(selectedObject as ImageObject).generationStyle && (
+                        <TextField
+                          fullWidth
+                          margin="normal"
+                          label="Style"
+                          value={(selectedObject as ImageObject).generationStyle}
+                          InputProps={{ readOnly: true }}
+                        />
+                      )}
+                      
+                      {(selectedObject as ImageObject).generationPrompt && (
+                        <TextField
+                          fullWidth
+                          margin="normal"
+                          label="Full Prompt"
+                          value={(selectedObject as ImageObject).generationPrompt}
+                          multiline
+                          rows={3}
+                          InputProps={{ readOnly: true }}
+                          helperText="The complete prompt sent to the image generator"
+                        />
+                      )}
+                      
+                      {(selectedObject as ImageObject).generatedAt && (
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                          Generated: {new Date((selectedObject as ImageObject).generatedAt!).toLocaleString()}
+                        </Typography>
+                      )}
+                    </>
+                  )}
                 </>
               )}
               
@@ -947,13 +996,16 @@ export default function PresentationEditor() {
       {id && typeof id === 'string' && (
         <ImageGenerationProgress
           presentationId={id}
-          onImagesReady={(slideImages) => {
-            // Update slides with generated images
+          onImagesReady={(slideImages, jobData) => {
+            // Update slides with generated images and metadata
             const updatedSlides = [...slides];
             slideImages.forEach((imageUrls, slideId) => {
               const slideIndex = updatedSlides.findIndex(s => s.id === slideId);
               if (slideIndex !== -1) {
                 const slide = updatedSlides[slideIndex];
+                // Get job data for this slide if available
+                const job = jobData?.find(j => j.slideId === slideId);
+                
                 // Find image objects in the slide and update them
                 slide.objects = slide.objects.map(obj => {
                   if (obj.type === 'image') {
@@ -962,6 +1014,11 @@ export default function PresentationEditor() {
                       src: imageUrls[0] || obj.src,
                       variants: imageUrls,
                       heroIndex: 0,
+                      // Add generation metadata
+                      generationDescription: job?.description,
+                      generationStyle: job?.style,
+                      generationPrompt: job?.fullPrompt,
+                      generatedAt: new Date(),
                     } as ImageObject;
                   }
                   return obj;

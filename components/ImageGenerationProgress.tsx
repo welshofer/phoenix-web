@@ -23,7 +23,7 @@ import { useImageGeneration } from '@/hooks/useImageGeneration';
 
 interface ImageGenerationProgressProps {
   presentationId: string;
-  onImagesReady?: (slideImages: Map<string, string[]>) => void;
+  onImagesReady?: (slideImages: Map<string, string[]>, jobData?: any[]) => void;
 }
 
 export default function ImageGenerationProgress({ 
@@ -83,9 +83,10 @@ export default function ImageGenerationProgress({
   // Notify when images are ready
   useEffect(() => {
     if (completedCount > 0 && onImagesReady) {
-      onImagesReady(getCompletedImages());
+      const completedJobs = jobs.filter(j => j.status === 'completed');
+      onImagesReady(getCompletedImages(), completedJobs);
     }
-  }, [completedCount, getCompletedImages, onImagesReady]);
+  }, [completedCount, getCompletedImages, onImagesReady, jobs]);
 
   if (totalCount === 0) {
     return null;
