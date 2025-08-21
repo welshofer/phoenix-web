@@ -151,14 +151,14 @@ export default function GeneratePage() {
           // Queue image generation if requested
           if (params.generateImages === 'now' && params.imageStyle) {
             try {
-              // Prepare image generation requests from slides
+              // Prepare image generation requests from slides with image objects
               const imageRequests = slides
-                .filter((slide: any) => slide.content?.some((obj: any) => obj.type === 'image'))
+                .filter((slide: any) => slide.objects?.some((obj: any) => obj.type === 'image'))
                 .map((slide: any) => {
-                  const imageObj = slide.content.find((obj: any) => obj.type === 'image');
+                  const imageObj = slide.objects.find((obj: any) => obj.type === 'image');
                   return {
                     slideId: slide.id,
-                    description: imageObj?.description || imageObj?.prompt || `Image for ${slide.title || 'slide'}`,
+                    description: imageObj?.alt || imageObj?.generationDescription || `Image for slide`,
                     style: params.imageStyle,
                     priority: 1, // Normal priority
                   };
