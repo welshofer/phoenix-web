@@ -2,7 +2,7 @@
   "indexes": [
     {
       "collectionGroup": "imageGenerationQueue",
-      "queryScope": "COLLECTION_GROUP",
+      "queryScope": "COLLECTION",
       "fields": [
         {
           "fieldPath": "presentationId",
