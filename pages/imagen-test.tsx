@@ -13,19 +13,34 @@ import {
   Alert,
   Paper,
 } from '@mui/material';
-import { IMAGE_STYLES, ImageStyle } from '@/lib/constants/image-styles';
 
-export default function TestImagePage() {
+// Import only the constants, not any server-side code
+const IMAGE_STYLES = {
+  photorealistic: "Photorealistic",
+  pencilSketch: "Pencil Sketch",
+  watercolor: "Watercolor",
+  digitalArt: "Digital Art",
+  minimalist: "Minimalist",
+  vintage: "Vintage",
+  neonGlow: "Neon Glow",
+  comicBook: "Comic Book",
+  impressionist: "Impressionist",
+  scribble: "Scribble",
+};
+
+export default function ImagenTestPage() {
   const [prompt, setPrompt] = useState('A modern office building with glass windows');
-  const [style, setStyle] = useState<ImageStyle>('photorealistic');
+  const [style, setStyle] = useState('photorealistic');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [result, setResult] = useState<any>(null);
 
   const handleGenerate = async () => {
     setLoading(true);
     setError(null);
     setImageUrl(null);
+    setResult(null);
 
     try {
       const response = await fetch('/api/imagen/generate', {
@@ -45,7 +60,10 @@ export default function TestImagePage() {
         throw new Error(data.error || 'Failed to generate image');
       }
 
-      setImageUrl(data.imageUrl);
+      setResult(data);
+      if (data.imageUrl) {
+        setImageUrl(data.imageUrl);
+      }
     } catch (err) {
       console.error('Generation error:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate image');
@@ -57,7 +75,7 @@ export default function TestImagePage() {
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Typography variant="h4" gutterBottom>
-        Test Image Generation with Imagen
+        Imagen Test
       </Typography>
 
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -76,11 +94,11 @@ export default function TestImagePage() {
           <Select
             value={style}
             label="Style"
-            onChange={(e) => setStyle(e.target.value as ImageStyle)}
+            onChange={(e) => setStyle(e.target.value)}
           >
-            {Object.keys(IMAGE_STYLES).map((key) => (
+            {Object.entries(IMAGE_STYLES).map(([key, label]) => (
               <MenuItem key={key} value={key}>
-                {key.replace(/([A-Z])/g, ' $1').trim()}
+                {label}
               </MenuItem>
             ))}
           </Select>
@@ -101,6 +119,14 @@ export default function TestImagePage() {
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
+      )}
+
+      {result && (
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Typography variant="body2" component="pre">
+            {JSON.stringify(result, null, 2)}
+          </Typography>
+        </Paper>
       )}
 
       {imageUrl && (
