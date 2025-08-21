@@ -38,6 +38,7 @@ import {
   Person,
   ViewCarousel,
   AutoAwesome,
+  Podcasts,
 } from '@mui/icons-material';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -47,6 +48,7 @@ import {
   PresentationDocument,
 } from '@/lib/firebase/presentations';
 import { format } from 'date-fns';
+import PodcastExportDialog from '@/components/PodcastExportDialog';
 
 export default function PresentationsPage() {
   const router = useRouter();
@@ -58,6 +60,7 @@ export default function PresentationsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
   const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement | null; id: string | null }>({ el: null, id: null });
+  const [podcastDialog, setPodcastDialog] = useState<{ open: boolean; id: string | null; title: string }>({ open: false, id: null, title: '' });
 
   useEffect(() => {
     if (user) {
@@ -336,6 +339,23 @@ export default function PresentationsPage() {
         </MenuItem>
         
         <MenuItem onClick={() => {
+          if (menuAnchor.id) {
+            const presentation = presentations.find(p => p.metadata.id === menuAnchor.id);
+            if (presentation) {
+              setPodcastDialog({ 
+                open: true, 
+                id: menuAnchor.id, 
+                title: presentation.metadata.title 
+              });
+            }
+          }
+          setMenuAnchor({ el: null, id: null });
+        }}>
+          <Podcasts sx={{ mr: 1 }} fontSize="small" />
+          Export as Podcast
+        </MenuItem>
+        
+        <MenuItem onClick={() => {
           // TODO: Implement sharing
           setMenuAnchor({ el: null, id: null });
         }}>
@@ -372,6 +392,16 @@ export default function PresentationsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Podcast Export Dialog */}
+      {podcastDialog.id && (
+        <PodcastExportDialog
+          open={podcastDialog.open}
+          onClose={() => setPodcastDialog({ open: false, id: null, title: '' })}
+          presentationId={podcastDialog.id}
+          presentationTitle={podcastDialog.title}
+        />
+      )}
     </Container>
   );
 }
