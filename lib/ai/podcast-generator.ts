@@ -1,6 +1,6 @@
 import { getGenerativeModelInstance } from './vertex-config';
 import { Presentation } from '@/lib/models/presentation';
-import { Slide, TextObject, SlideObjectUnion } from '@/lib/models/slide';
+import { Slide, TextObject, ImageObject, SlideObjectUnion } from '@/lib/models/slide';
 
 export interface PresentationContent {
   title: string;
@@ -263,10 +263,10 @@ function extractTextFromSlide(slide: Slide): {
   );
   const content = contentObjects.map(obj => obj.content);
   
-  // Extract image descriptions from alt text (which contains generation prompts)
-  const imageObjects = slide.objects.filter(obj => obj.type === 'image');
+  // Extract image descriptions from generationDescription field (clean descriptions without style)
+  const imageObjects = slide.objects.filter(obj => obj.type === 'image') as ImageObject[];
   const imageDescriptions = imageObjects
-    .map(obj => (obj as any).alt || '')
+    .map(obj => obj.generationDescription || obj.alt || '')
     .filter(desc => desc.length > 0);
   
   const speakerNotes = slide.notes || '';
