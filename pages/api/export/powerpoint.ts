@@ -17,13 +17,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const pptx = new PptxGenJS();
     
-    // Set slide size to 16:9 aspect ratio
+    // Set slide size to 1920x1080 pixels (converted to inches)
+    // PowerPoint uses inches, so we convert: 1920px / 96dpi = 20 inches, 1080px / 96dpi = 11.25 inches
     pptx.defineLayout({
-      name: 'CUSTOM_16_9',
-      width: 10,
-      height: 7.5
+      name: 'CUSTOM_1920x1080',
+      width: 20,  // 1920 pixels at 96 DPI
+      height: 11.25  // 1080 pixels at 96 DPI
     });
-    pptx.layout = 'CUSTOM_16_9';
+    pptx.layout = 'CUSTOM_1920x1080';
     
     // Process each slide
     for (const slideData of slides) {
@@ -77,8 +78,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-// Scale factor to convert pixels to inches
-const SCALE_FACTOR = 10 / 1920;
+// Scale factor to convert pixels to inches (1920x1080 at 96 DPI)
+const SCALE_FACTOR = 20 / 1920;  // 20 inches width / 1920 pixels
 
 function pixelsToInches(pixels: number): number {
   return pixels * SCALE_FACTOR;

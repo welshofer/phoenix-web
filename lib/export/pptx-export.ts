@@ -6,25 +6,24 @@ import { Coordinates } from '@/lib/models/coordinates';
 /**
  * PowerPoint Export Service using pptxgenjs
  * 
- * Key Findings:
- * 1. pptxgenjs supports precise positioning using x, y, w, h properties
- * 2. Positions can be specified in inches, percentages, or points
- * 3. Standard PowerPoint slide dimensions: 10" x 7.5" (16:9 aspect ratio)
- * 4. Our 1920x1080 grid maps perfectly to this ratio
+ * Key Features:
+ * 1. Exports slides in exact 1920x1080 pixel dimensions
+ * 2. Uses 96 DPI standard for PowerPoint conversion
+ * 3. Maintains pixel-perfect positioning from web canvas
  * 
  * Coordinate Mapping:
- * - 1920 pixels → 10 inches width
- * - 1080 pixels → 7.5 inches height
- * - Conversion factor: 192 pixels/inch (width), 144 pixels/inch (height)
+ * - 1920 pixels → 20 inches width (at 96 DPI)
+ * - 1080 pixels → 11.25 inches height (at 96 DPI)
+ * - Conversion factor: 20/1920 = 0.0104167 inches per pixel
  * 
- * However, to maintain consistency, we'll use a single scale factor:
- * - Scale: 10/1920 = 0.00520833 inches per pixel
+ * This ensures the PowerPoint slides have the exact same 1920x1080
+ * aspect ratio and dimensions as the web presentation.
  */
 
 export class PptxExporter {
   private pptx: PptxGenJS;
-  private readonly SLIDE_WIDTH_INCHES = 10;
-  private readonly SLIDE_HEIGHT_INCHES = 7.5;
+  private readonly SLIDE_WIDTH_INCHES = 20;  // 1920px at 96 DPI
+  private readonly SLIDE_HEIGHT_INCHES = 11.25;  // 1080px at 96 DPI
   private readonly CANVAS_WIDTH = 1920;
   private readonly CANVAS_HEIGHT = 1080;
   
@@ -34,13 +33,13 @@ export class PptxExporter {
   constructor() {
     this.pptx = new PptxGenJS();
     
-    // Set slide size to 16:9 aspect ratio
+    // Set slide size to exact 1920x1080 pixels (at 96 DPI)
     this.pptx.defineLayout({
-      name: 'CUSTOM_16_9',
+      name: 'CUSTOM_1920x1080',
       width: this.SLIDE_WIDTH_INCHES,
       height: this.SLIDE_HEIGHT_INCHES
     });
-    this.pptx.layout = 'CUSTOM_16_9';
+    this.pptx.layout = 'CUSTOM_1920x1080';
   }
 
   /**
@@ -453,7 +452,7 @@ export function createTestSlide(): Slide {
       {
         id: 'footer',
         type: 'text',
-        content: 'Grid: 1920x1080 → PowerPoint: 10" x 7.5"',
+        content: 'Grid: 1920x1080 → PowerPoint: 1920x1080 pixels',
         coordinates: { x: 100, y: 950, width: 1720, height: 50 },
         role: 'caption' as any,
         customStyles: {
