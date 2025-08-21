@@ -198,7 +198,46 @@ export function createSlideFromAIContent(
           ));
         }
       }
-      if (aiSlide.body) {
+      
+      // Check if we have an image description for content slides
+      if (aiSlide.imageDescription) {
+        // For content slides with images, split the layout
+        const imageZone = layout.zones.find(z => z.role === 'image');
+        const bodyZone = layout.zones.find(z => z.role === 'body');
+        
+        if (imageZone) {
+          objects.push(createImagePlaceholder(
+            aiSlide.imageDescription,
+            imageZone.coordinates
+          ));
+        } else if (bodyZone) {
+          // If no dedicated image zone, use right half of body zone for image
+          objects.push(createImagePlaceholder(
+            aiSlide.imageDescription,
+            {
+              x: bodyZone.coordinates.x + bodyZone.coordinates.width / 2 + 20,
+              y: bodyZone.coordinates.y,
+              width: bodyZone.coordinates.width / 2 - 40,
+              height: bodyZone.coordinates.height,
+            }
+          ));
+          
+          // Adjust text to left half
+          if (aiSlide.body) {
+            objects.push(createTextObject(
+              aiSlide.body,
+              'body',
+              {
+                x: bodyZone.coordinates.x,
+                y: bodyZone.coordinates.y,
+                width: bodyZone.coordinates.width / 2 - 20,
+                height: bodyZone.coordinates.height,
+              }
+            ));
+          }
+        }
+      } else if (aiSlide.body) {
+        // No image, use full width for text
         const bodyZone = layout.zones.find(z => z.role === 'body');
         if (bodyZone) {
           objects.push(createTextObject(

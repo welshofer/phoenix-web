@@ -85,6 +85,8 @@ export default async function handler(
     
     const prompt = `Create a ${sanitized.slideCount}-slide ${sanitized.style} presentation about "${sanitized.topic}".
 
+For slides that would benefit from images (e.g., content slides, image_with_text), include an imageDescription field with a detailed description for AI image generation.
+
 Return JSON:
 {
   "title": "Title",
@@ -92,7 +94,8 @@ Return JSON:
   "slides": [
     {"type": "title", "heading": "text", "subheading": "text"},
     {"type": "bullets", "heading": "text", "bullets": ["item1", "item2"]},
-    {"type": "content", "heading": "text", "body": "text"}
+    {"type": "content", "heading": "text", "body": "text", "imageDescription": "detailed description for image generation"},
+    {"type": "image_with_text", "heading": "text", "body": "text", "imageDescription": "detailed description"}
   ]
 }`;
 
