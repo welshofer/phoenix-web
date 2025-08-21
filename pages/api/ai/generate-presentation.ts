@@ -122,9 +122,52 @@ Return JSON:
     
     // Clean and parse response
     const text = candidate.content.parts[0].text;
-    const jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    let jsonText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
     
-    const aiResponse = JSON.parse(jsonText);
+    // Try to fix common JSON issues
+    let aiResponse;
+    try {
+      aiResponse = JSON.parse(jsonText);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.log('Raw JSON text length:', jsonText.length);
+      
+      // Try to fix unterminated strings by adding quotes
+      if (parseError instanceof Error && parseError.message.includes('Unterminated string')) {
+        // Find the last valid JSON closing bracket/brace
+        const lastValidIndex = Math.max(
+          jsonText.lastIndexOf('"}'),
+          jsonText.lastIndexOf('"]'),
+          jsonText.lastIndexOf('}]')
+        );
+        
+        if (lastValidIndex > 0) {
+          // Truncate at the last valid position and close the JSON
+          jsonText = jsonText.substring(0, lastValidIndex + 2);
+          
+          // Count open brackets to close them properly
+          const openBrackets = (jsonText.match(/\[/g) || []).length;
+          const closeBrackets = (jsonText.match(/\]/g) || []).length;
+          const openBraces = (jsonText.match(/\{/g) || []).length;
+          const closeBraces = (jsonText.match(/\}/g) || []).length;
+          
+          // Add missing closing brackets/braces
+          jsonText += ']'.repeat(Math.max(0, openBrackets - closeBrackets));
+          jsonText += '}'.repeat(Math.max(0, openBraces - closeBraces));
+          
+          try {
+            aiResponse = JSON.parse(jsonText);
+            console.log('Successfully recovered JSON by truncating at position', lastValidIndex);
+          } catch (retryError) {
+            throw new Error(`Failed to parse AI response: ${parseError.message}`);
+          }
+        } else {
+          throw new Error(`Failed to parse AI response: ${parseError.message}`);
+        }
+      } else {
+        throw new Error(`Failed to parse AI response: ${parseError.message}`);
+      }
+    }
 
     // Convert AI response to Slide objects
     const slides: Slide[] = aiResponse.slides.map((aiSlide: any, index: number) =>
