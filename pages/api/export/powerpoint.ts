@@ -17,9 +17,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const pptx = new PptxGenJS();
     
-    // Use the built-in 16:9 layout which is exactly 1920x1080 when viewed at 100%
-    // This ensures proper aspect ratio in PowerPoint
-    pptx.layout = 'LAYOUT_16x9';
+    // Define custom layout with exact 1920x1080 dimensions
+    // PowerPoint uses 96 DPI, so we need 20 inches x 11.25 inches for 1920x1080
+    pptx.defineLayout({
+      name: 'CUSTOM_1920x1080',
+      width: 20,      // 1920 pixels / 96 DPI = 20 inches
+      height: 11.25   // 1080 pixels / 96 DPI = 11.25 inches
+    });
+    pptx.layout = 'CUSTOM_1920x1080';
     
     // Process each slide
     for (const slideData of slides) {
@@ -73,9 +78,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-// Scale factor to convert pixels to inches for 16:9 layout
-// The LAYOUT_16x9 in pptxgenjs is 10" x 5.625" 
-const SCALE_FACTOR = 10 / 1920;  // 10 inches width / 1920 pixels
+// Scale factor to convert pixels to inches
+// Our custom layout is 20" x 11.25" for 1920x1080 pixels
+// This gives us 96 DPI which matches PowerPoint's internal resolution
+const SCALE_FACTOR = 20 / 1920;  // 20 inches width / 1920 pixels = 96 DPI
 
 function pixelsToInches(pixels: number): number {
   return pixels * SCALE_FACTOR;
@@ -143,20 +149,16 @@ function addTextObject(slide: PptxGenJS.Slide, textObj: TextObject): void {
 async function addImageObject(slide: PptxGenJS.Slide, imageObj: ImageObject): Promise<void> {
   const position = convertCoordinates(imageObj.coordinates);
   
-  // Always use 'contain' to maintain aspect ratio
-  // This prevents image distortion in PowerPoint
+  // Don't use sizing property - let pptxgenjs handle aspect ratio
+  // Just set the bounding box and the image will fit proportionally
   const options: PptxGenJS.ImageProps = {
     x: position.x,
     y: position.y,
     w: position.w,
     h: position.h,
     path: imageObj.src,
-    altText: imageObj.alt || '',
-    sizing: {
-      type: 'contain',  // Always maintain aspect ratio
-      w: position.w,
-      h: position.h
-    }
+    altText: imageObj.alt || ''
+    // No sizing property - this allows natural aspect ratio preservation
   };
 
   slide.addImage(options);

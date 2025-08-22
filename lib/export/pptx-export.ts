@@ -22,19 +22,25 @@ import { Coordinates } from '@/lib/models/coordinates';
 
 export class PptxExporter {
   private pptx: PptxGenJS;
-  private readonly SLIDE_WIDTH_INCHES = 10;  // Standard 16:9 width
-  private readonly SLIDE_HEIGHT_INCHES = 5.625;  // Standard 16:9 height
+  // Use 96 DPI for perfect pixel mapping
+  private readonly SLIDE_WIDTH_INCHES = 20;      // 1920 / 96 = 20
+  private readonly SLIDE_HEIGHT_INCHES = 11.25;  // 1080 / 96 = 11.25
   private readonly CANVAS_WIDTH = 1920;
   private readonly CANVAS_HEIGHT = 1080;
   
-  // Scale factor to convert pixels to inches
+  // Scale factor to convert pixels to inches (96 DPI)
   private readonly SCALE_FACTOR = this.SLIDE_WIDTH_INCHES / this.CANVAS_WIDTH;
 
   constructor() {
     this.pptx = new PptxGenJS();
     
-    // Use the built-in 16:9 layout for proper aspect ratio
-    this.pptx.layout = 'LAYOUT_16x9';
+    // Define custom layout with exact 1920x1080 dimensions at 96 DPI
+    this.pptx.defineLayout({
+      name: 'CUSTOM_1920x1080',
+      width: this.SLIDE_WIDTH_INCHES,
+      height: this.SLIDE_HEIGHT_INCHES
+    });
+    this.pptx.layout = 'CUSTOM_1920x1080';
   }
 
   /**
@@ -87,23 +93,16 @@ export class PptxExporter {
   private async addImageObject(slide: PptxGenJS.Slide, imageObj: ImageObject): Promise<void> {
     const position = this.convertCoordinates(imageObj.coordinates);
     
-    // For images, we should maintain aspect ratio
-    // Use 'contain' to fit within bounds without distortion
+    // Don't use sizing property - it causes distortion
+    // Just set position and dimensions, let pptxgenjs handle aspect ratio
     const options: PptxGenJS.ImageProps = {
       x: position.x,
       y: position.y,
       w: position.w,
       h: position.h,
       path: imageObj.src,
-      altText: imageObj.alt || '',
-      // Always use contain to prevent distortion
-      // This ensures the image fits within the specified bounds
-      // while maintaining its aspect ratio
-      sizing: {
-        type: 'contain',
-        w: position.w,
-        h: position.h
-      }
+      altText: imageObj.alt || ''
+      // No sizing property - allows natural aspect ratio preservation
     };
 
     slide.addImage(options);
