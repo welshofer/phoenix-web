@@ -18,8 +18,10 @@ export default async function handler(
       presentationId, 
       format = 'conversation',
       duration = 10,
-      voice1Gender = 'female',
-      voice2Gender = 'male',
+      voice1 = 'en-US-Journey-F',
+      voice2 = 'en-US-Journey-D',
+      voice1Gender,  // legacy support
+      voice2Gender,  // legacy support
       language = 'en'
     } = req.body;
 
@@ -51,12 +53,16 @@ export default async function handler(
 
     const presentationContent = convertPresentationToContent(presentation, slides);
 
+    // For backward compatibility, extract gender from voice ID if not provided
+    const v1Gender = voice1Gender || (voice1.includes('Female') || voice1.includes('-F') || voice1.includes('-C') || voice1.includes('-E') || voice1.includes('-G') || voice1.includes('-H') || voice1.includes('-O') ? 'female' : 'male');
+    const v2Gender = voice2Gender || (voice2.includes('Female') || voice2.includes('-F') || voice2.includes('-C') || voice2.includes('-E') || voice2.includes('-G') || voice2.includes('-H') || voice2.includes('-O') ? 'female' : 'male');
+
     const script = await generatePodcastScript(
       presentationContent,
       format as PodcastFormat,
       duration,
-      voice1Gender as 'male' | 'female',
-      voice2Gender as 'male' | 'female',
+      v1Gender as 'male' | 'female',
+      v2Gender as 'male' | 'female',
       language
     );
 

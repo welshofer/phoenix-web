@@ -27,7 +27,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DownloadIcon from '@mui/icons-material/Download';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import MicIcon from '@mui/icons-material/Mic';
-import { PodcastFormat } from '@/lib/ai/podcast-generator';
+import { PodcastFormat, availableVoices } from '@/lib/ai/podcast-generator';
 import Tooltip from '@mui/material/Tooltip';
 import { isBrowserTTSAvailable, generateBrowserAudio } from '@/lib/ai/browser-tts';
 
@@ -53,8 +53,8 @@ const PodcastExportDialog: React.FC<PodcastExportDialogProps> = ({
   
   const [format, setFormat] = useState<PodcastFormat>('conversation');
   const [duration, setDuration] = useState(10);
-  const [voice1Gender, setVoice1Gender] = useState<'male' | 'female'>('female');
-  const [voice2Gender, setVoice2Gender] = useState<'male' | 'female'>('male');
+  const [voice1, setVoice1] = useState('en-US-Journey-F');
+  const [voice2, setVoice2] = useState('en-US-Journey-D');
   const [language, setLanguage] = useState('en');
 
   const languages = [
@@ -95,8 +95,8 @@ const PodcastExportDialog: React.FC<PodcastExportDialogProps> = ({
           presentationId,
           format,
           duration,
-          voice1Gender,
-          voice2Gender,
+          voice1,
+          voice2,
           language
         }),
       });
@@ -160,8 +160,8 @@ const PodcastExportDialog: React.FC<PodcastExportDialogProps> = ({
         body: JSON.stringify({
           script,
           language,
-          voice1Gender,
-          voice2Gender,
+          voice1,
+          voice2,
           speakingRate: 1.0,
           pitch: 0.0
         }),
@@ -174,8 +174,8 @@ const PodcastExportDialog: React.FC<PodcastExportDialogProps> = ({
         if (errorData.fallback === 'browser-tts' && isBrowserTTSAvailable()) {
           const audioBlob = await generateBrowserAudio(script, {
             language,
-            voice1Gender,
-            voice2Gender,
+            voice1Gender: 'female', // fallback to gender for browser TTS
+            voice2Gender: 'male',
             rate: 1.0,
             pitch: 1.0
           });
@@ -273,28 +273,34 @@ const PodcastExportDialog: React.FC<PodcastExportDialogProps> = ({
               </FormControl>
 
               <Box sx={{ display: 'flex', gap: 3 }}>
-                <FormControl component="fieldset">
-                  <FormLabel component="legend">Speaker 1 Voice</FormLabel>
-                  <RadioGroup
-                    value={voice1Gender}
-                    onChange={(e) => setVoice1Gender(e.target.value as 'male' | 'female')}
-                    row
+                <FormControl fullWidth>
+                  <InputLabel>Speaker 1 Voice</InputLabel>
+                  <Select
+                    value={voice1}
+                    onChange={(e) => setVoice1(e.target.value)}
+                    label="Speaker 1 Voice"
                   >
-                    <FormControlLabel value="female" control={<Radio />} label="Female" />
-                    <FormControlLabel value="male" control={<Radio />} label="Male" />
-                  </RadioGroup>
+                    {availableVoices['en-US']?.map((voice) => (
+                      <MenuItem key={voice.id} value={voice.id}>
+                        {voice.name} ({voice.gender}, {voice.type})
+                      </MenuItem>
+                    ))}
+                  </Select>
                 </FormControl>
 
-                <FormControl component="fieldset">
-                  <FormLabel component="legend">Speaker 2 Voice</FormLabel>
-                  <RadioGroup
-                    value={voice2Gender}
-                    onChange={(e) => setVoice2Gender(e.target.value as 'male' | 'female')}
-                    row
+                <FormControl fullWidth>
+                  <InputLabel>Speaker 2 Voice</InputLabel>
+                  <Select
+                    value={voice2}
+                    onChange={(e) => setVoice2(e.target.value)}
+                    label="Speaker 2 Voice"
                   >
-                    <FormControlLabel value="female" control={<Radio />} label="Female" />
-                    <FormControlLabel value="male" control={<Radio />} label="Male" />
-                  </RadioGroup>
+                    {availableVoices['en-US']?.map((voice) => (
+                      <MenuItem key={voice.id} value={voice.id}>
+                        {voice.name} ({voice.gender}, {voice.type})
+                      </MenuItem>
+                    ))}
+                  </Select>
                 </FormControl>
               </Box>
 

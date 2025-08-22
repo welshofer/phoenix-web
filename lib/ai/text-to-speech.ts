@@ -12,8 +12,10 @@ export interface SpeakerSegment {
 
 export interface AudioGenerationOptions {
   language: string;
-  voice1Gender: 'male' | 'female';
-  voice2Gender: 'male' | 'female';
+  voice1?: string;  // Voice ID
+  voice2?: string;  // Voice ID
+  voice1Gender?: 'male' | 'female';  // Legacy support
+  voice2Gender?: 'male' | 'female';  // Legacy support
   speakingRate?: number;
   pitch?: number;
 }
@@ -22,16 +24,27 @@ export interface AudioGenerationOptions {
 export function parseScriptToSegments(
   script: string,
   language: string,
-  voice1Gender: 'male' | 'female',
-  voice2Gender: 'male' | 'female'
+  voice1?: string,
+  voice2?: string,
+  voice1Gender?: 'male' | 'female',
+  voice2Gender?: 'male' | 'female'
 ): SpeakerSegment[] {
   const segments: SpeakerSegment[] = [];
   const lines = script.split('\n');
   
-  // Get voice mapping for the language
-  const voices = TTSVoiceMapping[language] || TTSVoiceMapping['en'];
-  const voice1Name = voice1Gender === 'female' ? voices.host : voices.expert;
-  const voice2Name = voice2Gender === 'female' ? voices.host : voices.expert;
+  // Use provided voice IDs or fall back to gender-based selection
+  let voice1Name: string;
+  let voice2Name: string;
+  
+  if (voice1 && voice2) {
+    voice1Name = voice1;
+    voice2Name = voice2;
+  } else {
+    // Legacy: Get voice mapping for the language based on gender
+    const voices = TTSVoiceMapping[language] || TTSVoiceMapping['en'];
+    voice1Name = voice1Gender === 'female' ? voices.host : voices.expert;
+    voice2Name = voice2Gender === 'female' ? voices.host : voices.expert;
+  }
   
   // Regular expression to match speaker lines
   const speakerRegex = /^\*\*([^:]+):\*\*\s*(.+)$/;
@@ -149,10 +162,10 @@ export async function generatePodcastAudio(
   script: string,
   options: AudioGenerationOptions
 ): Promise<Buffer> {
-  const { language, voice1Gender, voice2Gender, speakingRate = 1.0, pitch = 0.0 } = options;
+  const { language, voice1, voice2, voice1Gender, voice2Gender, speakingRate = 1.0, pitch = 0.0 } = options;
   
   // Parse script into segments
-  const segments = parseScriptToSegments(script, language, voice1Gender, voice2Gender);
+  const segments = parseScriptToSegments(script, language, voice1, voice2, voice1Gender, voice2Gender);
   
   if (segments.length === 0) {
     throw new Error('No speaker segments found in script');

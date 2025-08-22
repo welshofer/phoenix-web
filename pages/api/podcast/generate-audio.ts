@@ -22,8 +22,10 @@ export default async function handler(
     const { 
       script,
       language = 'en',
-      voice1Gender = 'female',
-      voice2Gender = 'male',
+      voice1 = 'en-US-Journey-F',
+      voice2 = 'en-US-Journey-D',
+      voice1Gender,  // legacy support
+      voice2Gender,  // legacy support
       speakingRate = 1.0,
       pitch = 0.0
     } = req.body;
@@ -34,8 +36,10 @@ export default async function handler(
 
     const options: AudioGenerationOptions = {
       language,
-      voice1Gender: voice1Gender as 'male' | 'female',
-      voice2Gender: voice2Gender as 'male' | 'female',
+      voice1,
+      voice2,
+      voice1Gender: voice1Gender as 'male' | 'female',  // Legacy support
+      voice2Gender: voice2Gender as 'male' | 'female',  // Legacy support
       speakingRate,
       pitch
     };
