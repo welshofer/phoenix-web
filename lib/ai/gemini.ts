@@ -33,13 +33,27 @@ const model = vertex.preview.getGenerativeModel({
 
 // AI-generated slide structure
 interface AISlideContent {
-  type: string;
+  // Core content for every slide
+  title: string;
+  subtitle: string;
+  leftHeading: string;
+  leftBullets: string[]; // 5-7 bullets
+  rightHeading: string;
+  rightBullets: string[]; // 5-7 bullets
+  imagePrompts: string[]; // 4 image generation prompts
+  quote: string;
+  quoteAuthor: string;
+  statistic: string;
+  statisticUnit: string;
+  bestSlideType: string;
+  
+  // Legacy fields for backwards compatibility
+  type?: string;
   heading?: string;
   subheading?: string;
   bullets?: string[];
   body?: string;
   imageDescription?: string;
-  quote?: string;
   citation?: string;
   leftContent?: string | string[];
   rightContent?: string | string[];
@@ -61,39 +75,60 @@ export async function generatePresentation(
   slideCount: number = 10,
   style: 'professional' | 'creative' | 'educational' = 'professional'
 ): Promise<AIPresentationResponse> {
-  const prompt = `Generate a ${style} presentation about "${topic}" with exactly ${slideCount} slides.
+  const prompt = `Generate a ${style} presentation about "${topic}" with EXACTLY ${slideCount} slides. YOU MUST PROVIDE EXACTLY ${slideCount} SLIDES - NO MORE, NO LESS.
 
 Return ONLY valid JSON (no markdown, no code blocks) with this exact structure:
 {
   "title": "Main Presentation Title",
-  "subtitle": "Optional subtitle",
+  "subtitle": "Presentation subtitle",
   "suggestedTheme": "modern|minimal|bold|elegant",
   "suggestedColorScheme": "blue|green|purple|orange|monochrome",
   "slides": [
     {
-      "type": "title|section|bullets|image|imageWithText|twoColumn|quote|content",
-      "heading": "Slide heading",
-      "subheading": "Optional subheading",
-      "bullets": ["Point 1", "Point 2"],
-      "body": "Paragraph text for content slides",
-      "imageDescription": "Detailed description of what image should show",
-      "quote": "Quote text",
-      "citation": "Quote attribution",
-      "leftContent": "Text or array of bullets for left column",
-      "rightContent": "Text or array of bullets for right column"
+      "title": "Slide title (always provide)",
+      "subtitle": "Slide subtitle (always provide)",
+      "leftHeading": "Heading for left side content",
+      "leftBullets": ["Bullet 1", "Bullet 2", "Bullet 3", "Bullet 4", "Bullet 5", "Bullet 6", "Bullet 7"],
+      "rightHeading": "Heading for right side content",
+      "rightBullets": ["Bullet 1", "Bullet 2", "Bullet 3", "Bullet 4", "Bullet 5", "Bullet 6", "Bullet 7"],
+      "imagePrompts": [
+        "Detailed prompt for image 1",
+        "Detailed prompt for image 2",
+        "Detailed prompt for image 3",
+        "Detailed prompt for image 4"
+      ],
+      "quote": "A relevant and impactful quote",
+      "quoteAuthor": "Author Name, Title/Organization",
+      "statistic": "95",
+      "statisticUnit": "percent increase in productivity",
+      "bestSlideType": "twoColumn|bullets|image|imageWithText|quote|comparison|timeline|chart|content"
     }
   ]
 }
 
-Guidelines:
-- First slide should be type "title" with the presentation title
-- Include a mix of slide types for variety
-- Make bullets concise and impactful
-- For image slides, provide detailed imageDescription for image generation
-- For two-column slides, provide leftContent and rightContent
-- Ensure logical flow and progression of ideas
-- Use section slides to divide major topics
-- Keep text concise and presentation-friendly`;
+CRITICAL REQUIREMENTS:
+- YOU MUST GENERATE EXACTLY ${slideCount} SLIDES
+- EVERY slide MUST have ALL fields filled with relevant content
+- title and subtitle are REQUIRED for every slide
+- leftBullets and rightBullets MUST each contain 5-7 items
+- imagePrompts MUST contain exactly 4 detailed image generation prompts
+- Each image prompt should be detailed enough for AI image generation (describe scene, style, mood, colors)
+- quote and quoteAuthor should be relevant to the slide's content
+- statistic should be a meaningful number related to the slide topic
+- statisticUnit should explain what the statistic represents
+- bestSlideType should recommend the optimal layout for this content
+
+Content Guidelines:
+- First slide should focus on introducing the topic
+- Create comprehensive, information-rich content for each slide
+- Ensure bullets are substantive and informative (not just keywords)
+- Make statistics specific and impactful
+- Choose quotes that add authority or emotional resonance
+- Image prompts should be varied: diagrams, photos, illustrations, infographics
+- Maintain logical flow and progression throughout the presentation
+- Balance different types of content across slides
+
+IMPORTANT: Generate EXACTLY ${slideCount} slides, not ${slideCount - 1} or ${slideCount + 1}. Count them to ensure you have exactly ${slideCount}.`;
 
   try {
     const result = await model.generateContent(prompt);
@@ -131,27 +166,27 @@ export function createSlideFromAIContent(
   
   // Get template layout for this slide type
   const template = modernTemplate; // You can make this dynamic
-  const slideType = mapAITypeToSlideType(aiSlide.type);
+  const slideType = mapAITypeToSlideType(aiSlide.bestSlideType || aiSlide.type || 'content');
   const layout = template.layouts[slideType];
   
   // Create objects based on slide type and content
   switch (slideType) {
     case SlideType.TITLE:
-      if (aiSlide.heading) {
+      if (aiSlide.title || aiSlide.heading) {
         const titleZone = layout.zones.find(z => z.role === 'title');
         if (titleZone) {
           objects.push(createTextObject(
-            aiSlide.heading,
+            aiSlide.title || aiSlide.heading || '',
             'title',
             titleZone.coordinates
           ));
         }
       }
-      if (aiSlide.subheading) {
+      if (aiSlide.subtitle || aiSlide.subheading) {
         const subtitleZone = layout.zones.find(z => z.role === 'subtitle');
         if (subtitleZone) {
           objects.push(createTextObject(
-            aiSlide.subheading,
+            aiSlide.subtitle || aiSlide.subheading || '',
             'subtitle',
             subtitleZone.coordinates
           ));
@@ -160,21 +195,29 @@ export function createSlideFromAIContent(
       break;
       
     case SlideType.BULLETS:
-      if (aiSlide.heading) {
+      if (aiSlide.title || aiSlide.heading) {
         const headerZone = layout.zones.find(z => z.role === 'header');
         if (headerZone) {
           objects.push(createTextObject(
-            aiSlide.heading,
+            aiSlide.title || aiSlide.heading || '',
             'header',
             headerZone.coordinates
           ));
         }
       }
-      if (aiSlide.bullets && aiSlide.bullets.length > 0) {
+      // Combine left and right bullets for single bullet list, or use legacy bullets
+      let allBullets: string[] = [];
+      if (aiSlide.leftBullets && aiSlide.leftBullets.length > 0) {
+        allBullets = [...aiSlide.leftBullets];
+      } else if (aiSlide.bullets && aiSlide.bullets.length > 0) {
+        allBullets = aiSlide.bullets;
+      }
+      
+      if (allBullets.length > 0) {
         const bulletsZone = layout.zones.find(z => z.role === 'bullets');
         if (bulletsZone) {
-          const bulletHeight = bulletsZone.coordinates.height / aiSlide.bullets.length;
-          aiSlide.bullets.forEach((bullet, index) => {
+          const bulletHeight = bulletsZone.coordinates.height / allBullets.length;
+          allBullets.forEach((bullet, index) => {
             objects.push(createTextObject(
               `• ${bullet}`,
               'bullets',
@@ -192,22 +235,26 @@ export function createSlideFromAIContent(
       
     case SlideType.IMAGE:
     case SlideType.IMAGE_WITH_TEXT:
-      if (aiSlide.heading) {
+      if (aiSlide.title || aiSlide.heading) {
         const headerZone = layout.zones.find(z => z.role === 'header');
         if (headerZone) {
           objects.push(createTextObject(
-            aiSlide.heading,
+            aiSlide.title || aiSlide.heading || '',
             'header',
             headerZone.coordinates
           ));
         }
       }
-      if (aiSlide.imageDescription) {
+      // Use first image prompt from the array, or fall back to imageDescription
+      const imagePrompt = (aiSlide.imagePrompts && aiSlide.imagePrompts.length > 0) 
+        ? aiSlide.imagePrompts[0] 
+        : aiSlide.imageDescription;
+      if (imagePrompt) {
         const imageZone = layout.zones.find(z => z.role === 'image');
         if (imageZone) {
           // Placeholder for image - in real app, this would trigger image generation
           objects.push(createImagePlaceholder(
-            aiSlide.imageDescription,
+            imagePrompt,
             imageZone.coordinates
           ));
         }
@@ -225,11 +272,11 @@ export function createSlideFromAIContent(
       break;
       
     case SlideType.TWO_COLUMN:
-      if (aiSlide.heading) {
+      if (aiSlide.title || aiSlide.heading) {
         const headerZone = layout.zones.find(z => z.role === 'header');
         if (headerZone) {
           objects.push(createTextObject(
-            aiSlide.heading,
+            aiSlide.title || aiSlide.heading || '',
             'header',
             headerZone.coordinates
           ));
@@ -239,18 +286,39 @@ export function createSlideFromAIContent(
       const leftZone = layout.zones.find(z => z.id === 'leftColumn');
       const rightZone = layout.zones.find(z => z.id === 'rightColumn');
       
-      if (leftZone && aiSlide.leftContent) {
-        const leftText = Array.isArray(aiSlide.leftContent) 
-          ? aiSlide.leftContent.map(item => `• ${item}`).join('\n')
-          : aiSlide.leftContent;
-        objects.push(createTextObject(leftText, 'body', leftZone.coordinates));
+      // Use new comprehensive fields first, fall back to legacy fields
+      if (leftZone) {
+        let leftText = '';
+        if (aiSlide.leftHeading) {
+          leftText = aiSlide.leftHeading + '\n\n';
+        }
+        if (aiSlide.leftBullets && aiSlide.leftBullets.length > 0) {
+          leftText += aiSlide.leftBullets.map(item => `• ${item}`).join('\n');
+        } else if (aiSlide.leftContent) {
+          leftText += Array.isArray(aiSlide.leftContent)
+            ? aiSlide.leftContent.map(item => `• ${item}`).join('\n')
+            : aiSlide.leftContent;
+        }
+        if (leftText) {
+          objects.push(createTextObject(leftText, 'body', leftZone.coordinates));
+        }
       }
       
-      if (rightZone && aiSlide.rightContent) {
-        const rightText = Array.isArray(aiSlide.rightContent)
-          ? aiSlide.rightContent.map(item => `• ${item}`).join('\n')
-          : aiSlide.rightContent;
-        objects.push(createTextObject(rightText, 'body', rightZone.coordinates));
+      if (rightZone) {
+        let rightText = '';
+        if (aiSlide.rightHeading) {
+          rightText = aiSlide.rightHeading + '\n\n';
+        }
+        if (aiSlide.rightBullets && aiSlide.rightBullets.length > 0) {
+          rightText += aiSlide.rightBullets.map(item => `• ${item}`).join('\n');
+        } else if (aiSlide.rightContent) {
+          rightText += Array.isArray(aiSlide.rightContent)
+            ? aiSlide.rightContent.map(item => `• ${item}`).join('\n')
+            : aiSlide.rightContent;
+        }
+        if (rightText) {
+          objects.push(createTextObject(rightText, 'body', rightZone.coordinates));
+        }
       }
       break;
       
@@ -265,11 +333,11 @@ export function createSlideFromAIContent(
           ));
         }
       }
-      if (aiSlide.citation) {
+      if (aiSlide.quoteAuthor || aiSlide.citation) {
         const citationZone = layout.zones.find(z => z.role === 'citation');
         if (citationZone) {
           objects.push(createTextObject(
-            aiSlide.citation,
+            aiSlide.quoteAuthor || aiSlide.citation || '',
             'citation',
             citationZone.coordinates
           ));
@@ -279,21 +347,38 @@ export function createSlideFromAIContent(
       
     case SlideType.CONTENT:
     default:
-      if (aiSlide.heading) {
+      if (aiSlide.title || aiSlide.heading) {
         const headerZone = layout.zones.find(z => z.role === 'header');
         if (headerZone) {
           objects.push(createTextObject(
-            aiSlide.heading,
+            aiSlide.title || aiSlide.heading || '',
             'header',
             headerZone.coordinates
           ));
         }
       }
+      // For content slides, combine relevant information
+      let bodyContent = '';
       if (aiSlide.body) {
+        bodyContent = aiSlide.body;
+      } else {
+        // Build content from the comprehensive fields
+        if (aiSlide.subtitle) {
+          bodyContent += aiSlide.subtitle + '\n\n';
+        }
+        if (aiSlide.statistic && aiSlide.statisticUnit) {
+          bodyContent += `Key Metric: ${aiSlide.statistic} ${aiSlide.statisticUnit}\n\n`;
+        }
+        if (aiSlide.leftBullets && aiSlide.leftBullets.length > 0) {
+          bodyContent += aiSlide.leftBullets.map(b => `• ${b}`).join('\n');
+        }
+      }
+      
+      if (bodyContent) {
         const bodyZone = layout.zones.find(z => z.role === 'body');
         if (bodyZone) {
           objects.push(createTextObject(
-            aiSlide.body,
+            bodyContent,
             'body',
             bodyZone.coordinates
           ));
