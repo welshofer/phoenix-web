@@ -73,10 +73,11 @@ export class PptxExporter {
   private addTextObject(slide: PptxGenJS.Slide, textObj: TextObject): void {
     const position = this.convertCoordinates(textObj.coordinates);
     
-    // PowerPoint expects font size in points
-    // Our font sizes from the web are already in a reasonable point range
-    // Don't scale them down - use them directly
-    const fontSize = textObj.customStyles?.fontSize || 18;
+    // Scale font size appropriately for PowerPoint
+    // We're mapping 1920x1080 to 20x11.25 inches (96 DPI)
+    // Standard PowerPoint uses 10x5.625 inches for 16:9, so we're 2x larger
+    // Therefore, we need to scale up the font size by 2x
+    const fontSize = (textObj.customStyles?.fontSize || 18) * 2;
     
     const options: PptxGenJS.TextPropsOptions = {
       ...position,
