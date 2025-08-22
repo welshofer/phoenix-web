@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { generatePodcastScript, convertPresentationToContent, PodcastFormat } from '@/lib/ai/podcast-generator';
+import { generatePodcastScript, convertPresentationToContent } from '@/lib/ai/podcast-generator';
+import { PodcastFormat } from '@/lib/ai/podcast-voices';
 import { db } from '@/lib/firebase/config';
 import { collection, doc, getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { Presentation } from '@/lib/models/presentation';

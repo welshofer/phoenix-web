@@ -27,7 +27,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DownloadIcon from '@mui/icons-material/Download';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import MicIcon from '@mui/icons-material/Mic';
-import { PodcastFormat, availableVoices } from '@/lib/ai/podcast-generator';
+import { PodcastFormat, availableVoices } from '@/lib/ai/podcast-voices';
 import Tooltip from '@mui/material/Tooltip';
 import { isBrowserTTSAvailable, generateBrowserAudio } from '@/lib/ai/browser-tts';
 

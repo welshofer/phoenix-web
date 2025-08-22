@@ -1,5 +1,5 @@
 import { TextToSpeechClient } from '@google-cloud/text-to-speech';
-import { TTSVoiceMapping } from './podcast-generator';
+import { TTSVoiceMapping } from './podcast-voices';
 
 // Initialize the Text-to-Speech client
 const ttsClient = new TextToSpeechClient();
