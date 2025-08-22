@@ -87,9 +87,11 @@ export class PptxExporter {
       align: textObj.customStyles?.textAlign || 'left',
       valign: 'top',
       margin: 0,
-      wrap: true
+      wrap: true,
+      isTextBox: true  // Ensure text is treated as plain text, not formatted
     };
 
+    // Pass text as plain string to avoid any markdown interpretation
     slide.addText(textObj.content, options);
   }
 
