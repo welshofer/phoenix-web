@@ -71,6 +71,36 @@ export async function uploadMultipleImagesServer(
 }
 
 /**
+ * Upload audio file to Firebase Storage
+ * @param base64Audio - Base64 encoded audio
+ * @param path - Storage path for the audio file
+ * @returns Public URL of the uploaded audio
+ */
+export async function uploadAudioToStorage(
+  base64Audio: string,
+  path: string
+): Promise<string> {
+  try {
+    const buffer = Buffer.from(base64Audio, 'base64');
+    const file = bucket.file(path);
+    
+    await file.save(buffer, {
+      metadata: {
+        contentType: 'audio/mpeg',
+        cacheControl: 'public, max-age=31536000',
+      },
+      validation: false,
+    });
+    
+    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${path}`;
+    return publicUrl;
+  } catch (error: any) {
+    console.error('Error uploading audio:', error);
+    throw new Error(`Failed to upload audio: ${error.message || error}`);
+  }
+}
+
+/**
  * Delete an image from storage
  * @param path - The storage path
  */

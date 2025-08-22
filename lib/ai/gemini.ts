@@ -31,6 +31,9 @@ const model = vertex.preview.getGenerativeModel({
   },
 });
 
+// Export for use in podcast generation
+export const geminiModel = model;
+
 // AI-generated slide structure
 interface AISlideContent {
   // Core content for every slide

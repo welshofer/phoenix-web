@@ -163,6 +163,36 @@ export class PptxExporter {
   private async addImageObject(slide: PptxGenJS.Slide, imageObj: ImageObject): Promise<void> {
     const position = this.convertCoordinates(imageObj.coordinates);
     
+    // Skip placeholder images (they're not real files)
+    if (imageObj.src.includes('/api/placeholder')) {
+      // Add a placeholder rectangle with the alt text
+      const placeholderOptions: PptxGenJS.ShapeProps = {
+        x: position.x,
+        y: position.y,
+        w: position.w,
+        h: position.h,
+        fill: { color: 'F0F0F0' },
+        line: { color: 'CCCCCC', width: 1 }
+      };
+      slide.addShape(this.pptx.ShapeType.rect, placeholderOptions);
+      
+      // Add alt text in the center
+      if (imageObj.alt) {
+        slide.addText(imageObj.alt, {
+          x: position.x,
+          y: position.y,
+          w: position.w,
+          h: position.h,
+          fontSize: 12,
+          color: '666666',
+          align: 'center',
+          valign: 'middle',
+          wrap: true
+        });
+      }
+      return;
+    }
+    
     // IMPORTANT: We need to maintain aspect ratio
     // The image should fit within the bounds but NOT stretch to fill
     // We'll calculate the proper dimensions based on 16:9 aspect ratio
@@ -186,16 +216,44 @@ export class PptxExporter {
     }
     // If equal, use the box dimensions as-is
     
-    const options: PptxGenJS.ImageProps = {
-      x: position.x + offsetX,
-      y: position.y + offsetY,
-      w: finalWidth,
-      h: finalHeight,
-      path: imageObj.src,
-      altText: imageObj.alt || ''
-    };
-
-    slide.addImage(options);
+    try {
+      // For URLs that start with http/https, use them directly
+      // For Firebase Storage URLs or other valid URLs
+      if (imageObj.src.startsWith('http://') || imageObj.src.startsWith('https://')) {
+        const options: PptxGenJS.ImageProps = {
+          x: position.x + offsetX,
+          y: position.y + offsetY,
+          w: finalWidth,
+          h: finalHeight,
+          path: imageObj.src,
+          altText: imageObj.alt || ''
+        };
+        slide.addImage(options);
+      } else {
+        // For local paths or unsupported URLs, add placeholder
+        const placeholderOptions: PptxGenJS.ShapeProps = {
+          x: position.x,
+          y: position.y,
+          w: position.w,
+          h: position.h,
+          fill: { color: 'F0F0F0' },
+          line: { color: 'CCCCCC', width: 1 }
+        };
+        slide.addShape(this.pptx.ShapeType.rect, placeholderOptions);
+      }
+    } catch (error) {
+      console.warn('Failed to add image:', imageObj.src, error);
+      // Add placeholder on error
+      const placeholderOptions: PptxGenJS.ShapeProps = {
+        x: position.x,
+        y: position.y,
+        w: position.w,
+        h: position.h,
+        fill: { color: 'F0F0F0' },
+        line: { color: 'CCCCCC', width: 1 }
+      };
+      slide.addShape(this.pptx.ShapeType.rect, placeholderOptions);
+    }
   }
 
   /**

@@ -3,75 +3,439 @@
 
 export type PodcastFormat = 'conversation' | 'interview' | 'educational' | 'debate';
 
-// CHIRP VOICES ONLY - The best and most natural TTS voices
-export const availableVoices = {
+export interface Voice {
+  id: string;
+  name: string;
+  gender: 'male' | 'female';
+  type: string;
+}
+
+// ALL CHIRP3-HD VOICES FROM GOOGLE CLOUD DOCUMENTATION
+// Female voices: 14 total
+// Male voices: 16 total
+
+const femaleVoiceNames = [
+  'Achernar', 'Aoede', 'Autonoe', 'Callirrhoe', 'Despina', 'Erinome', 'Gacrux',
+  'Kore', 'Laomedeia', 'Leda', 'Pulcherrima', 'Sulafat', 'Vindemiatrix', 'Zephyr'
+];
+
+const maleVoiceNames = [
+  'Achird', 'Algenib', 'Algieba', 'Alnilam', 'Charon', 'Enceladus', 'Fenrir',
+  'Iapetus', 'Orus', 'Puck', 'Rasalgethi', 'Sadachbia', 'Sadaltager', 'Schedar',
+  'Umbriel', 'Zubenelgenubi'
+];
+
+// Generate voices for each supported language
+// Chirp3-HD supports many languages with the same voice names
+export const availableVoices: Record<string, Voice[]> = {
   'en-US': [
-    { id: 'en-US-Polyglot-1', name: 'Polyglot 1', gender: 'male', type: 'Chirp' },
-    { id: 'en-US-Casual-K', name: 'Casual K', gender: 'male', type: 'Chirp' },
-  ]
+    ...femaleVoiceNames.map(name => ({
+      id: `en-US-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `en-US-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'en-GB': [
+    ...femaleVoiceNames.map(name => ({
+      id: `en-GB-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `en-GB-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'en-AU': [
+    ...femaleVoiceNames.map(name => ({
+      id: `en-AU-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `en-AU-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'en-IN': [
+    ...femaleVoiceNames.map(name => ({
+      id: `en-IN-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `en-IN-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'es-ES': [
+    ...femaleVoiceNames.map(name => ({
+      id: `es-ES-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `es-ES-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'es-US': [
+    ...femaleVoiceNames.map(name => ({
+      id: `es-US-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `es-US-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'fr-FR': [
+    ...femaleVoiceNames.map(name => ({
+      id: `fr-FR-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `fr-FR-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'de-DE': [
+    ...femaleVoiceNames.map(name => ({
+      id: `de-DE-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `de-DE-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'it-IT': [
+    ...femaleVoiceNames.map(name => ({
+      id: `it-IT-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `it-IT-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'pt-BR': [
+    ...femaleVoiceNames.map(name => ({
+      id: `pt-BR-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `pt-BR-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'pt-PT': [
+    ...femaleVoiceNames.map(name => ({
+      id: `pt-PT-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `pt-PT-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'nl-NL': [
+    ...femaleVoiceNames.map(name => ({
+      id: `nl-NL-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `nl-NL-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'nl-BE': [
+    ...femaleVoiceNames.map(name => ({
+      id: `nl-BE-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `nl-BE-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'ja-JP': [
+    ...femaleVoiceNames.map(name => ({
+      id: `ja-JP-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `ja-JP-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'ko-KR': [
+    ...femaleVoiceNames.map(name => ({
+      id: `ko-KR-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `ko-KR-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'ru-RU': [
+    ...femaleVoiceNames.map(name => ({
+      id: `ru-RU-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `ru-RU-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'zh-CN': [
+    ...femaleVoiceNames.map(name => ({
+      id: `zh-CN-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `zh-CN-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'ar-XA': [
+    ...femaleVoiceNames.map(name => ({
+      id: `ar-XA-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `ar-XA-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'hi-IN': [
+    ...femaleVoiceNames.map(name => ({
+      id: `hi-IN-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `hi-IN-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'bn-IN': [
+    ...femaleVoiceNames.map(name => ({
+      id: `bn-IN-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `bn-IN-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'id-ID': [
+    ...femaleVoiceNames.map(name => ({
+      id: `id-ID-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `id-ID-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'th-TH': [
+    ...femaleVoiceNames.map(name => ({
+      id: `th-TH-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `th-TH-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'vi-VN': [
+    ...femaleVoiceNames.map(name => ({
+      id: `vi-VN-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `vi-VN-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'tr-TR': [
+    ...femaleVoiceNames.map(name => ({
+      id: `tr-TR-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `tr-TR-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'pl-PL': [
+    ...femaleVoiceNames.map(name => ({
+      id: `pl-PL-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `pl-PL-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'sv-SE': [
+    ...femaleVoiceNames.map(name => ({
+      id: `sv-SE-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `sv-SE-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'da-DK': [
+    ...femaleVoiceNames.map(name => ({
+      id: `da-DK-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `da-DK-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'nb-NO': [
+    ...femaleVoiceNames.map(name => ({
+      id: `nb-NO-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `nb-NO-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
+  'fi-FI': [
+    ...femaleVoiceNames.map(name => ({
+      id: `fi-FI-Chirp3-HD-${name}`,
+      name,
+      gender: 'female' as const,
+      type: 'chirp3-hd'
+    })),
+    ...maleVoiceNames.map(name => ({
+      id: `fi-FI-Chirp3-HD-${name}`,
+      name,
+      gender: 'male' as const,
+      type: 'chirp3-hd'
+    }))
+  ],
 };
 
-// CHIRP VOICES ONLY - Google's latest and most advanced TTS model
-// Chirp provides superior naturalness and expressiveness compared to all other models
-export const TTSVoiceMapping: Record<string, { host: string; expert: string }> = {
-  'en': { 
-    host: 'en-US-Polyglot-1',   // Chirp multilingual voice
-    expert: 'en-US-Casual-K'    // Chirp casual voice
-  },
-  'es': { 
-    host: 'es-US-Polyglot-1',   // Spanish Chirp
-    expert: 'es-US-Polyglot-1'
-  },
-  'es-MX': { 
-    host: 'es-US-Polyglot-1',
-    expert: 'es-US-Polyglot-1'
-  },
-  'fr': { 
-    host: 'fr-FR-Polyglot-1',   // French Chirp
-    expert: 'fr-FR-Polyglot-1'
-  },
-  'de': { 
-    host: 'de-DE-Polyglot-1',   // German Chirp
-    expert: 'de-DE-Polyglot-1'
-  },
-  'it': { 
-    host: 'it-IT-Journey-F',   // Using Journey until Chirp available
-    expert: 'it-IT-Journey-D'
-  },
-  'pt-BR': { 
-    host: 'pt-BR-Neural2-C',   // Using Neural2 until Chirp available
-    expert: 'pt-BR-Neural2-B'
-  },
-  'ja': { 
-    host: 'ja-JP-Neural2-C',   // Using Neural2 until Chirp available
-    expert: 'ja-JP-Neural2-D'
-  },
-  'ko': { 
-    host: 'ko-KR-Neural2-C',   // Using Neural2 until Chirp available
-    expert: 'ko-KR-Neural2-A'
-  },
-  'zh-CN': { 
-    host: 'cmn-CN-Standard-A', // Using Standard until Chirp available
-    expert: 'cmn-CN-Standard-B'
-  },
-  'zh-TW': { 
-    host: 'cmn-TW-Standard-A',
-    expert: 'cmn-TW-Standard-B'
-  },
-  'nl': { 
-    host: 'nl-NL-Wavenet-D',   // Using Wavenet until Chirp available
-    expert: 'nl-NL-Wavenet-B'
-  },
-  'ru': { 
-    host: 'ru-RU-Wavenet-C',   // Using Wavenet until Chirp available
-    expert: 'ru-RU-Wavenet-D'
-  },
-  'ar': { 
-    host: 'ar-XA-Wavenet-C',   // Using Wavenet until Chirp available
-    expert: 'ar-XA-Wavenet-B'
-  },
-  'hi': { 
-    host: 'hi-IN-Neural2-C',   // Using Neural2 until Chirp available
-    expert: 'hi-IN-Neural2-B'
-  }
-};
+// Export the voice names for gender detection
+export const CHIRP_FEMALE_VOICES = femaleVoiceNames;
+export const CHIRP_MALE_VOICES = maleVoiceNames;

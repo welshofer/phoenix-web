@@ -323,9 +323,9 @@ export async function generatePodcastScript(
   voice2Gender: 'male' | 'female' = 'male',
   language: string = 'en'
 ): Promise<string> {
-  // Dynamically import gemini only on server-side
-  const { geminiModel } = await import('./gemini');
-  const model = geminiModel;
+  // Use the server-side Vertex AI client
+  const { getGeminiModel } = await import('../server/vertex-ai');
+  const model = await getGeminiModel();
   
   const systemPrompt = getSystemPromptForFormat(format, duration, voice1Gender, voice2Gender, language);
   const presentationData = formatPresentationContent(content);
@@ -341,6 +341,19 @@ ${presentationData}
 ${getFinalInstruction(language)}:`;
 
   const result = await model.generateContent(prompt);
-  const response = await result.response;
-  return response.text();
+  const response = result.response;
+  
+  // Get the text from the response - check what methods are available
+  let text: string;
+  if (typeof response.text === 'function') {
+    text = response.text();
+  } else if (response.candidates && response.candidates[0]?.content?.parts?.[0]?.text) {
+    text = response.candidates[0].content.parts[0].text;
+  } else {
+    console.error('Response structure:', JSON.stringify(response, null, 2));
+    throw new Error('Unable to extract text from response');
+  }
+  
+  // Return the script directly as markdown text, not JSON
+  return text.trim();
 }

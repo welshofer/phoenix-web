@@ -36,6 +36,8 @@ export default function ImageGenerationProgress({
 }: ImageGenerationProgressProps) {
   const [expanded, setExpanded] = React.useState(true);
   
+  console.log('ImageGenerationProgress mounted with presentationId:', presentationId, 'compact:', compact);
+  
   const {
     jobs,
     pendingCount,

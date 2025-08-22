@@ -1042,6 +1042,7 @@ export default function PresentationEditor() {
         <ImageGenerationProgress
           presentationId={id}
           onImagesReady={(slideImages, jobData) => {
+            console.log('Images ready callback triggered with:', slideImages.size, 'slide images');
             // Update slides with generated images and metadata
             const updatedSlides = [...slides];
             slideImages.forEach((imageUrls, slideId) => {

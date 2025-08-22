@@ -179,6 +179,8 @@ export function subscribeToImageUpdates(
   presentationId: string,
   onUpdate: (jobs: ImageGenerationJob[]) => void
 ): () => void {
+  console.log('subscribeToImageUpdates: Setting up subscription for:', presentationId);
+  
   const q = query(
     collection(db, IMAGE_QUEUE_COLLECTION),
     where('presentationId', '==', presentationId)
@@ -186,10 +188,14 @@ export function subscribeToImageUpdates(
   
   const unsubscribe = onSnapshot(q, 
     (snapshot) => {
+      console.log('subscribeToImageUpdates: Snapshot received, size:', snapshot.size);
       const jobs: ImageGenerationJob[] = [];
       snapshot.forEach((doc) => {
-        jobs.push({ ...doc.data(), id: doc.id } as ImageGenerationJob);
+        const data = doc.data();
+        console.log(`subscribeToImageUpdates: Job ${doc.id} status:`, data.status);
+        jobs.push({ ...data, id: doc.id } as ImageGenerationJob);
       });
+      console.log('subscribeToImageUpdates: Calling onUpdate with', jobs.length, 'jobs');
       onUpdate(jobs);
     },
     (error) => {
@@ -207,20 +213,44 @@ export async function getPresentationImageJobs(
   presentationId: string
 ): Promise<ImageGenerationJob[]> {
   try {
-    const q = query(
-      collection(db, IMAGE_QUEUE_COLLECTION),
-      where('presentationId', '==', presentationId),
-      orderBy('createdAt', 'asc')
-    );
+    console.log('getPresentationImageJobs: Fetching jobs for:', presentationId);
     
-    const snapshot = await getDocs(q);
-    const jobs: ImageGenerationJob[] = [];
-    
-    snapshot.forEach((doc) => {
-      jobs.push({ ...doc.data(), id: doc.id } as ImageGenerationJob);
-    });
-    
-    return jobs;
+    // Try with orderBy first
+    try {
+      const q = query(
+        collection(db, IMAGE_QUEUE_COLLECTION),
+        where('presentationId', '==', presentationId),
+        orderBy('createdAt', 'asc')
+      );
+      
+      const snapshot = await getDocs(q);
+      const jobs: ImageGenerationJob[] = [];
+      
+      snapshot.forEach((doc) => {
+        jobs.push({ ...doc.data(), id: doc.id } as ImageGenerationJob);
+      });
+      
+      console.log('getPresentationImageJobs: Found', jobs.length, 'jobs (with orderBy)');
+      return jobs;
+    } catch (orderError) {
+      console.warn('getPresentationImageJobs: orderBy failed, trying without:', orderError);
+      
+      // Fallback without orderBy
+      const q = query(
+        collection(db, IMAGE_QUEUE_COLLECTION),
+        where('presentationId', '==', presentationId)
+      );
+      
+      const snapshot = await getDocs(q);
+      const jobs: ImageGenerationJob[] = [];
+      
+      snapshot.forEach((doc) => {
+        jobs.push({ ...doc.data(), id: doc.id } as ImageGenerationJob);
+      });
+      
+      console.log('getPresentationImageJobs: Found', jobs.length, 'jobs (without orderBy)');
+      return jobs;
+    }
   } catch (error) {
     console.error('Error getting presentation jobs:', error);
     return [];

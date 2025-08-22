@@ -25,20 +25,32 @@ export function useImageGeneration(presentationId: string | null) {
   });
 
   useEffect(() => {
-    if (!presentationId) return;
+    if (!presentationId) {
+      console.log('useImageGeneration: No presentationId provided');
+      return;
+    }
+
+    console.log('useImageGeneration: Setting up for presentation:', presentationId);
 
     // Load initial jobs
     getPresentationImageJobs(presentationId).then(jobs => {
+      console.log('useImageGeneration: Initial jobs loaded:', jobs.length, jobs);
       updateState(jobs);
+    }).catch(error => {
+      console.error('useImageGeneration: Error loading initial jobs:', error);
     });
 
     // Subscribe to real-time updates
     const unsubscribe = subscribeToImageUpdates(presentationId, (jobs) => {
+      console.log('useImageGeneration: Real-time update received:', jobs.length, jobs);
       updateState(jobs);
       // Removed automatic queue triggering - let ImageGenerationProgress handle it
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('useImageGeneration: Cleaning up subscription for:', presentationId);
+      unsubscribe();
+    };
   }, [presentationId]);
 
   const updateState = (jobs: ImageGenerationJob[]) => {
@@ -46,6 +58,14 @@ export function useImageGeneration(presentationId: string | null) {
     const processingCount = jobs.filter(j => j.status === 'processing').length;
     const completedCount = jobs.filter(j => j.status === 'completed').length;
     const failedCount = jobs.filter(j => j.status === 'failed').length;
+    
+    console.log('Image generation state update:', {
+      total: jobs.length,
+      pending: pendingCount,
+      processing: processingCount,
+      completed: completedCount,
+      failed: failedCount
+    });
     
     setState({
       jobs,

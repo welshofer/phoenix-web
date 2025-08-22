@@ -51,27 +51,46 @@ const PodcastExportDialog: React.FC<PodcastExportDialogProps> = ({
   const [showCopySnackbar, setShowCopySnackbar] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   
+  const languages = [
+    { code: 'en', name: 'English', locale: 'en-US' },
+    { code: 'es', name: 'Spanish', locale: 'es-ES' },
+    { code: 'fr', name: 'French', locale: 'fr-FR' },
+    { code: 'de', name: 'German', locale: 'de-DE' },
+    { code: 'it', name: 'Italian', locale: 'it-IT' },
+    { code: 'pt', name: 'Portuguese (Brazil)', locale: 'pt-BR' },
+    { code: 'nl', name: 'Dutch', locale: 'nl-NL' },
+    { code: 'ja', name: 'Japanese', locale: 'ja-JP' },
+    { code: 'ko', name: 'Korean', locale: 'ko-KR' },
+    { code: 'ru', name: 'Russian', locale: 'ru-RU' },
+    { code: 'zh', name: 'Chinese (Mandarin)', locale: 'zh-CN' },
+    { code: 'ar', name: 'Arabic', locale: 'ar-XA' },
+    { code: 'hi', name: 'Hindi', locale: 'hi-IN' },
+    { code: 'bn', name: 'Bengali', locale: 'bn-IN' },
+    { code: 'id', name: 'Indonesian', locale: 'id-ID' },
+    { code: 'th', name: 'Thai', locale: 'th-TH' },
+    { code: 'vi', name: 'Vietnamese', locale: 'vi-VN' },
+    { code: 'tr', name: 'Turkish', locale: 'tr-TR' },
+    { code: 'pl', name: 'Polish', locale: 'pl-PL' },
+    { code: 'sv', name: 'Swedish', locale: 'sv-SE' },
+    { code: 'da', name: 'Danish', locale: 'da-DK' },
+    { code: 'no', name: 'Norwegian', locale: 'nb-NO' },
+    { code: 'fi', name: 'Finnish', locale: 'fi-FI' },
+  ];
+
   const [format, setFormat] = useState<PodcastFormat>('conversation');
   const [duration, setDuration] = useState(10);
-  const [voice1, setVoice1] = useState('en-US-Polyglot-1');
-  const [voice2, setVoice2] = useState('en-US-Casual-K');
   const [language, setLanguage] = useState('en');
-
-  const languages = [
-    { code: 'en', name: 'English' },
-    { code: 'es', name: 'Spanish' },
-    { code: 'fr', name: 'French' },
-    { code: 'de', name: 'German' },
-    { code: 'it', name: 'Italian' },
-    { code: 'pt', name: 'Portuguese' },
-    { code: 'nl', name: 'Dutch' },
-    { code: 'ja', name: 'Japanese' },
-    { code: 'ko', name: 'Korean' },
-    { code: 'zh', name: 'Chinese' },
-    { code: 'ru', name: 'Russian' },
-    { code: 'ar', name: 'Arabic' },
-    { code: 'hi', name: 'Hindi' }
-  ];
+  
+  // Get current locale from selected language
+  const currentLocale = languages.find(l => l.code === language)?.locale || 'en-US';
+  
+  // Get available voices for current language (default to en-US if not available)
+  const currentVoices = availableVoices[currentLocale as keyof typeof availableVoices] || availableVoices['en-US'];
+  
+  // Set default voices based on current language
+  // If only one voice available, use it for both speakers
+  const [voice1, setVoice1] = useState(currentVoices?.[0]?.id || 'en-US-Chirp3-HD-Charon');
+  const [voice2, setVoice2] = useState(currentVoices?.[1]?.id || currentVoices?.[0]?.id || 'en-US-Chirp3-HD-Kore');
 
   const formatDescriptions = {
     conversation: 'Two hosts having a casual discussion about the presentation',
@@ -108,6 +127,72 @@ const PodcastExportDialog: React.FC<PodcastExportDialogProps> = ({
       }
 
       setScript(data.script);
+      
+      // Automatically generate audio after script
+      setAudioLoading(true);
+      try {
+        const audioResponse = await fetch('/api/podcast/generate-audio', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            script: data.script,
+            language,
+            voice1,
+            voice2,
+            speakingRate: 1.0,
+            pitch: 0.0
+          }),
+        });
+
+        if (!audioResponse.ok) {
+          const errorData = await audioResponse.json();
+          
+          // If Google Cloud TTS is not configured, try browser TTS
+          if (errorData.fallback === 'browser-tts' && isBrowserTTSAvailable()) {
+            const audioBlob = await generateBrowserAudio(data.script, {
+              language,
+              voice1Gender: 'female',
+              voice2Gender: 'male',
+              rate: 1.0,
+              pitch: 1.0
+            });
+            
+            const url = URL.createObjectURL(audioBlob);
+            setAudioUrl(url);
+            
+            // Download the audio automatically
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${presentationTitle.replace(/[^a-z0-9]/gi, '_')}_podcast.mp3`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            return;
+          }
+          
+          throw new Error(errorData.error || 'Failed to generate audio');
+        }
+
+        const audioBlob = await audioResponse.blob();
+        const url = URL.createObjectURL(audioBlob);
+        setAudioUrl(url);
+
+        // Automatically download the audio
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${presentationTitle.replace(/[^a-z0-9]/gi, '_')}_podcast.mp3`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } catch (audioErr) {
+        console.error('Audio generation error:', audioErr);
+        // Don't overwrite the script generation success
+        // Just log the audio error
+      } finally {
+        setAudioLoading(false);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
     } finally {
@@ -262,7 +347,17 @@ const PodcastExportDialog: React.FC<PodcastExportDialogProps> = ({
                 <Select
                   value={language}
                   label="Language"
-                  onChange={(e) => setLanguage(e.target.value)}
+                  onChange={(e) => {
+                    const newLanguage = e.target.value;
+                    setLanguage(newLanguage);
+                    // Update voices when language changes
+                    const newLocale = languages.find(l => l.code === newLanguage)?.locale || 'en-US';
+                    const newVoices = availableVoices[newLocale as keyof typeof availableVoices] || availableVoices['en-US'];
+                    if (newVoices && newVoices.length > 0) {
+                      setVoice1(newVoices[0].id);
+                      setVoice2(newVoices[1]?.id || newVoices[0].id);
+                    }
+                  }}
                 >
                   {languages.map(lang => (
                     <MenuItem key={lang.code} value={lang.code}>
@@ -272,37 +367,43 @@ const PodcastExportDialog: React.FC<PodcastExportDialogProps> = ({
                 </Select>
               </FormControl>
 
-              <Box sx={{ display: 'flex', gap: 3 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Speaker 1 Voice</InputLabel>
-                  <Select
-                    value={voice1}
-                    onChange={(e) => setVoice1(e.target.value)}
-                    label="Speaker 1 Voice"
-                  >
-                    {availableVoices['en-US']?.map((voice) => (
-                      <MenuItem key={voice.id} value={voice.id}>
-                        {voice.name} ({voice.gender}, {voice.type})
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+              {currentVoices && currentVoices.length > 0 ? (
+                <Box sx={{ display: 'flex', gap: 3 }}>
+                    <FormControl fullWidth>
+                      <InputLabel>Speaker 1 Voice</InputLabel>
+                      <Select
+                        value={voice1}
+                        onChange={(e) => setVoice1(e.target.value)}
+                        label="Speaker 1 Voice"
+                      >
+                        {currentVoices?.map((voice) => (
+                          <MenuItem key={voice.id} value={voice.id}>
+                            {voice.name} ({voice.gender}, {voice.type})
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
 
-                <FormControl fullWidth>
-                  <InputLabel>Speaker 2 Voice</InputLabel>
-                  <Select
-                    value={voice2}
-                    onChange={(e) => setVoice2(e.target.value)}
-                    label="Speaker 2 Voice"
-                  >
-                    {availableVoices['en-US']?.map((voice) => (
-                      <MenuItem key={voice.id} value={voice.id}>
-                        {voice.name} ({voice.gender}, {voice.type})
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
+                    <FormControl fullWidth>
+                      <InputLabel>Speaker 2 Voice</InputLabel>
+                      <Select
+                        value={voice2}
+                        onChange={(e) => setVoice2(e.target.value)}
+                        label="Speaker 2 Voice"
+                      >
+                        {currentVoices?.map((voice) => (
+                          <MenuItem key={voice.id} value={voice.id}>
+                            {voice.name} ({voice.gender}, {voice.type})
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+              ) : (
+                <Alert severity="warning">
+                  No Chirp voices available for this language.
+                </Alert>
+              )}
 
               {error && (
                 <Alert severity="error" onClose={() => setError(null)}>

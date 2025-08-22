@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { generatePodcastScript, convertPresentationToContent } from '@/lib/ai/podcast-generator';
-import { PodcastFormat } from '@/lib/ai/podcast-voices';
+import { PodcastFormat, CHIRP_FEMALE_VOICES } from '@/lib/ai/podcast-voices';
 import { db } from '@/lib/firebase/config';
 import { collection, doc, getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { Presentation } from '@/lib/models/presentation';
@@ -54,9 +54,9 @@ export default async function handler(
 
     const presentationContent = convertPresentationToContent(presentation, slides);
 
-    // For backward compatibility, extract gender from voice ID if not provided
-    const v1Gender = voice1Gender || (voice1.includes('Female') || voice1.includes('-F') || voice1.includes('-C') || voice1.includes('-E') || voice1.includes('-G') || voice1.includes('-H') || voice1.includes('-O') ? 'female' : 'male');
-    const v2Gender = voice2Gender || (voice2.includes('Female') || voice2.includes('-F') || voice2.includes('-C') || voice2.includes('-E') || voice2.includes('-G') || voice2.includes('-H') || voice2.includes('-O') ? 'female' : 'male');
+    // For Chirp voices, determine gender from the voice name
+    const v1Gender = voice1Gender || (CHIRP_FEMALE_VOICES.some(name => voice1.includes(name)) ? 'female' : 'male');
+    const v2Gender = voice2Gender || (CHIRP_FEMALE_VOICES.some(name => voice2.includes(name)) ? 'female' : 'male');
 
     const script = await generatePodcastScript(
       presentationContent,
