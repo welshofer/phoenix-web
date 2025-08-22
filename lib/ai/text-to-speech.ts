@@ -30,7 +30,22 @@ export function parseScriptToSegments(
   voice2Gender?: 'male' | 'female'
 ): SpeakerSegment[] {
   const segments: SpeakerSegment[] = [];
+  
+  // Handle null/undefined/empty script
+  if (!script || typeof script !== 'string' || script.trim().length === 0) {
+    console.error('Script is empty or invalid:', script);
+    return segments;
+  }
+  
   const lines = script.split('\n');
+  
+  console.log('=== PARSING SCRIPT ===');
+  console.log('Script type:', typeof script);
+  console.log('Script length:', script.length);
+  console.log('Number of lines:', lines.length);
+  console.log('First 10 lines:', lines.slice(0, 10));
+  console.log('Script preview:', script.substring(0, 500));
+  console.log('=====================');
   
   // Use provided voice IDs or fall back to gender-based selection
   let voice1Name: string;
@@ -47,15 +62,25 @@ export function parseScriptToSegments(
   }
   
   // Regular expression to match speaker lines
+  // Try multiple patterns in case AI uses slightly different formatting
   const speakerRegex = /^\*\*([^:]+):\*\*\s*(.+)$/;
+  const altSpeakerRegex = /^([A-Za-z]+):\s*(.+)$/;  // Fallback for plain "Name: text"
   
   let currentSpeaker: string | null = null;
   let currentVoice: string | null = null;
+  let matchCount = 0;
   
   for (const line of lines) {
-    const match = line.match(speakerRegex);
+    let match = line.match(speakerRegex);
+    
+    // If primary regex doesn't match, try alternative
+    if (!match) {
+      match = line.match(altSpeakerRegex);
+    }
     
     if (match) {
+      matchCount++;
+      console.log(`Match ${matchCount}:`, match[1], ':', match[2].substring(0, 50));
       const speakerName = match[1].trim();
       const dialogue = match[2].trim();
       
@@ -75,6 +100,9 @@ export function parseScriptToSegments(
       });
     }
   }
+  
+  console.log(`Total matches found: ${matchCount}`);
+  console.log(`Total segments created: ${segments.length}`);
   
   return segments;
 }

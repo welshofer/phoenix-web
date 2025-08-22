@@ -128,6 +128,13 @@ const PodcastExportDialog: React.FC<PodcastExportDialogProps> = ({
 
       setScript(data.script);
       
+      // Only generate audio if we actually have a script
+      if (!data.script || data.script.trim().length === 0) {
+        console.error('No script returned from generation');
+        setError('Failed to generate podcast script content');
+        return;
+      }
+      
       // Automatically generate audio after script
       setAudioLoading(true);
       try {

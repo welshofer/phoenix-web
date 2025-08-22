@@ -43,6 +43,20 @@
       ]
     },
     {
+      "collectionGroup": "presentations",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "metadata.userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "metadata.createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "slides",
       "queryScope": "COLLECTION",
       "fields": [

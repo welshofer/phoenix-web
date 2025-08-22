@@ -1,8 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { generatePodcastScript, convertPresentationToContent } from '@/lib/ai/podcast-generator';
 import { PodcastFormat, CHIRP_FEMALE_VOICES } from '@/lib/ai/podcast-voices';
-import { db } from '@/lib/firebase/config';
-import { collection, doc, getDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { adminDb } from '@/lib/firebase/server-firestore';
 import { Presentation } from '@/lib/models/presentation';
 import { Slide } from '@/lib/models/slide';
 
@@ -30,28 +29,76 @@ export default async function handler(
       return res.status(400).json({ error: 'Presentation ID is required' });
     }
 
-    const presentationDoc = await getDoc(doc(db, 'presentations', presentationId));
+    console.log('Request body:', req.body);
+
+    // Use Firebase Admin SDK to get the presentation
+    console.log('Fetching presentation with ID:', presentationId);
     
-    if (!presentationDoc.exists()) {
+    let presentationDoc;
+    try {
+      presentationDoc = await adminDb
+        .collection('presentations')
+        .doc(presentationId)
+        .get();
+      
+      console.log('Presentation exists:', presentationDoc.exists);
+      const rawData = presentationDoc.data();
+      console.log('Presentation raw data:', JSON.stringify(rawData, null, 2));
+    } catch (dbError) {
+      console.error('Firebase Admin error:', dbError);
+      return res.status(500).json({ 
+        error: 'Failed to fetch presentation from database',
+        details: dbError instanceof Error ? dbError.message : 'Unknown database error'
+      });
+    }
+    
+    if (!presentationDoc.exists) {
       return res.status(404).json({ error: 'Presentation not found' });
     }
 
+    const presentationData = presentationDoc.data();
     const presentation = {
       id: presentationDoc.id,
-      ...presentationDoc.data()
+      ...presentationData
     } as Presentation;
 
-    const slidesQuery = query(
-      collection(db, 'presentations', presentationId, 'slides'),
-      orderBy('order', 'asc')
-    );
+    // Extract slides from the embedded sections array
+    console.log('Extracting slides from sections array');
+    let slides: Slide[] = [];
     
-    const slidesSnapshot = await getDocs(slidesQuery);
-    const slides = slidesSnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Slide));
+    if (presentationData?.sections && Array.isArray(presentationData.sections)) {
+      // Slides are embedded in sections[0].slides
+      const mainSection = presentationData.sections[0];
+      if (mainSection?.slides && Array.isArray(mainSection.slides)) {
+        slides = mainSection.slides.map((slide: any, index: number) => ({
+          ...slide,
+          id: slide.id || `slide-${index}`,
+          order: slide.order || index
+        })) as Slide[];
+        console.log('Number of slides found in sections:', slides.length);
+      } else {
+        console.log('No slides found in main section');
+      }
+    } else {
+      console.log('No sections array found in presentation');
+    }
+    
+    console.log('Total slides extracted:', slides.length);
 
+    console.log('=== PODCAST API DEBUG ===');
+    console.log('Presentation ID:', presentationId);
+    console.log('Presentation Title:', presentation.title || presentationData?.sections?.[0]?.title || 'Untitled');
+    console.log('Number of slides:', slides.length);
+    if (slides.length > 0) {
+      console.log('First slide:', JSON.stringify(slides[0], null, 2));
+    }
+    console.log('=========================');
+    
+    // Use section title as presentation title if main title doesn't exist
+    if (!presentation.title && presentationData?.sections?.[0]?.title) {
+      presentation.title = presentationData.sections[0].title;
+    }
+    
     const presentationContent = convertPresentationToContent(presentation, slides);
 
     // For Chirp voices, determine gender from the voice name

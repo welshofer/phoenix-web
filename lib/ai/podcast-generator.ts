@@ -1,6 +1,6 @@
 import { Presentation } from '@/lib/models/presentation';
 import { Slide, TextObject, ImageObject, SlideObjectUnion } from '@/lib/models/slide';
-import { PodcastFormat, TTSVoiceMapping } from './podcast-voices';
+import { PodcastFormat } from './podcast-voices';
 
 export interface PresentationContent {
   title: string;
@@ -62,119 +62,6 @@ function getLanguageInstructions(language: string): string {
   return instructions[language] || instructions.en;
 }
 
-function getTaskInstructions(language: string, duration: number, format: string): string {
-  const instructions: Record<string, string> = {
-    en: `Based on the following presentation content, create a ${duration}-minute ${format} podcast script:
-
-Remember to:
-1. Start with a brief introduction
-2. Cover the main points from the presentation
-3. Keep the dialogue natural and engaging
-4. End with a summary or conclusion
-5. Target approximately ${duration} minutes of speaking time (roughly ${duration * 150} words)`,
-    es: `Basándote en el siguiente contenido de presentación, crea un guión de podcast de ${duration} minutos en formato ${format}:
-
-Recuerda:
-1. Comenzar con una breve introducción
-2. Cubrir los puntos principales de la presentación
-3. Mantener el diálogo natural y atractivo
-4. Terminar con un resumen o conclusión
-5. Apuntar a aproximadamente ${duration} minutos de tiempo de conversación (aproximadamente ${duration * 150} palabras)`,
-    fr: `Basé sur le contenu de présentation suivant, créez un script de podcast de ${duration} minutes au format ${format}:
-
-N'oubliez pas de:
-1. Commencer par une brève introduction
-2. Couvrir les points principaux de la présentation
-3. Garder le dialogue naturel et engageant
-4. Terminer par un résumé ou une conclusion
-5. Viser environ ${duration} minutes de temps de parole (environ ${duration * 150} mots)`,
-    de: `Basierend auf dem folgenden Präsentationsinhalt, erstellen Sie ein ${duration}-minütiges ${format} Podcast-Skript:
-
-Denken Sie daran:
-1. Mit einer kurzen Einführung beginnen
-2. Die Hauptpunkte der Präsentation abdecken
-3. Den Dialog natürlich und ansprechend halten
-4. Mit einer Zusammenfassung oder einem Fazit enden
-5. Etwa ${duration} Minuten Sprechzeit anstreben (etwa ${duration * 150} Wörter)`,
-    it: `Basandoti sul seguente contenuto della presentazione, crea uno script podcast di ${duration} minuti in formato ${format}:
-
-Ricorda di:
-1. Iniziare con una breve introduzione
-2. Coprire i punti principali della presentazione
-3. Mantenere il dialogo naturale e coinvolgente
-4. Terminare con un riassunto o conclusione
-5. Mirare a circa ${duration} minuti di tempo di conversazione (circa ${duration * 150} parole)`,
-    pt: `Com base no seguinte conteúdo da apresentação, crie um roteiro de podcast de ${duration} minutos no formato ${format}:
-
-Lembre-se de:
-1. Começar com uma breve introdução
-2. Cobrir os pontos principais da apresentação
-3. Manter o diálogo natural e envolvente
-4. Terminar com um resumo ou conclusão
-5. Visar aproximadamente ${duration} minutos de tempo de fala (aproximadamente ${duration * 150} palavras)`,
-    nl: `Gebaseerd op de volgende presentatie-inhoud, maak een ${duration}-minuten ${format} podcast script:
-
-Vergeet niet om:
-1. Te beginnen met een korte introductie
-2. De hoofdpunten van de presentatie te behandelen
-3. De dialoog natuurlijk en boeiend te houden
-4. Te eindigen met een samenvatting of conclusie
-5. Ongeveer ${duration} minuten spreektijd na te streven (ongeveer ${duration * 150} woorden)`,
-    ja: `以下のプレゼンテーション内容に基づいて、${duration}分間の${format}形式のポッドキャスト台本を作成してください：
-
-以下を忘れずに：
-1. 簡潔な導入で始める
-2. プレゼンテーションの要点をカバーする
-3. 対話を自然で魅力的に保つ
-4. 要約または結論で終える
-5. 約${duration}分の話し時間を目標にする（約${duration * 150}語）`,
-    ko: `다음 프레젠테이션 내용을 바탕으로 ${duration}분 ${format} 팟캐스트 대본을 작성하세요:
-
-다음 사항을 기억하세요:
-1. 간단한 소개로 시작하기
-2. 프레젠테이션의 주요 포인트 다루기
-3. 대화를 자연스럽고 매력적으로 유지하기
-4. 요약이나 결론으로 마무리하기
-5. 약 ${duration}분의 발화 시간을 목표로 하기 (약 ${duration * 150}단어)`,
-    zh: `基于以下演示内容，创建一个${duration}分钟的${format}播客脚本：
-
-记住要：
-1. 以简短的介绍开始
-2. 涵盖演示的要点
-3. 保持对话自然和引人入胜
-4. 以总结或结论结束
-5. 目标大约${duration}分钟的说话时间（大约${duration * 150}个字）`,
-    ru: `На основе следующего содержания презентации создайте ${duration}-минутный сценарий подкаста в формате ${format}:
-
-Помните:
-1. Начать с краткого введения
-2. Охватить основные моменты презентации
-3. Сохранить диалог естественным и увлекательным
-4. Закончить резюме или заключением
-5. Нацелиться на примерно ${duration} минут времени разговора (примерно ${duration * 150} слов)`
-  };
-  
-  return instructions[language] || instructions.en;
-}
-
-function getFinalInstruction(language: string): string {
-  const instructions: Record<string, string> = {
-    en: 'Generate the podcast script now',
-    es: 'Genera el guión del podcast ahora',
-    fr: 'Générez le script du podcast maintenant',
-    de: 'Generieren Sie das Podcast-Skript jetzt',
-    it: 'Genera lo script del podcast ora',
-    pt: 'Gere o roteiro do podcast agora',
-    nl: 'Genereer het podcast script nu',
-    ja: '今すぐポッドキャスト台本を生成してください',
-    ko: '지금 팟캐스트 대본을 생성하세요',
-    zh: '现在生成播客脚本',
-    ru: 'Сгенерируйте сценарий подкаста сейчас'
-  };
-  
-  return instructions[language] || instructions.en;
-}
-
 function getSystemPromptForFormat(
   format: PodcastFormat, 
   duration: number,
@@ -187,60 +74,67 @@ function getSystemPromptForFormat(
   
   const languageInstructions = getLanguageInstructions(language);
   
-  const basePrompt = `You are a professional podcast script writer. Create an engaging, natural-sounding dialogue script for a ${duration}-minute podcast episode. 
+  const basePrompt = `You are a professional podcast script writer creating a ${duration}-minute ${format} podcast episode.
 
 ${languageInstructions}
 
-CRITICAL: Format each line EXACTLY as shown below with markdown bold formatting:
+CRITICAL FORMATTING REQUIREMENTS:
+Each speaker line MUST be formatted EXACTLY as:
 **${speaker1Name}:** [dialogue]
 **${speaker2Name}:** [dialogue]
-
-DO NOT use any other format. Each speaker line MUST start with **${speaker1Name}:** or **${speaker2Name}:** in bold markdown.
 
 The speakers are:
 - ${speaker1Name} (${voice1Gender})
 - ${speaker2Name} (${voice2Gender})
 
-Important guidelines:
-- Make the conversation feel natural and conversational
-- Include verbal fillers occasionally for realism (appropriate to the language)
-- Add personality and emotion to the speakers
-- Keep the pace appropriate for a ${duration}-minute episode
+CONTENT REQUIREMENTS:
+- Create a natural, engaging conversation that covers ALL the presentation content
+- Include discussions about EVERY slide, including titles, bullet points, and speaker notes
+- Describe and discuss ALL images mentioned in the presentation
+- Incorporate ALL speaker notes as insider knowledge or additional context
+- Make the dialogue feel natural with occasional verbal fillers (um, you know, well, etc.)
+- Include reactions, questions, and insights about the content
+- Ensure both speakers contribute roughly equally
+- Target ${duration} minutes of speaking time (approximately ${duration * 150} words)
 - Include smooth transitions between topics
-- Make sure both speakers have roughly equal speaking time
-- Each speaker's dialogue should be on a single line (no line breaks within dialogue)
-- IMPORTANT: Incorporate descriptions of the visual elements naturally into the conversation
-- When discussing images, describe them vividly as if painting a picture for the listener
-- Use the image descriptions to add richness and context to the discussion`;
+- Add personality and emotion to make it engaging`;
 
   const formatSpecific = {
     conversation: `
-Style: Casual conversation between two podcast hosts discussing the presentation content
-- ${speaker1Name} is the main host who guides the conversation
+STYLE: Casual conversation between two knowledgeable podcast hosts
+- ${speaker1Name} is the main host who guides the discussion
 - ${speaker2Name} is the co-host who adds insights and asks clarifying questions
-- Include friendly banter and personal reactions
-- Make it feel like a natural discussion between colleagues`,
+- Include friendly banter and personal reactions to the content
+- Both hosts should sound excited about interesting points
+- Make references to the visual elements ("That image really drives home the point...")
+- Include moments where they expand on bullet points with examples`,
     
     interview: `
-Style: Professional interview format
-- ${speaker1Name} is the interviewer asking thoughtful questions
-- ${speaker2Name} is the expert/guest providing detailed answers
-- Include follow-up questions and requests for clarification
-- Make ${speaker2Name} sound knowledgeable and authoritative`,
+STYLE: Professional interview format
+- ${speaker1Name} is the interviewer asking insightful questions
+- ${speaker2Name} is the expert guest with deep knowledge of the presentation
+- Include follow-up questions and requests for elaboration
+- ${speaker2Name} should reference specific slides and data points
+- The expert should explain complex concepts clearly
+- Include discussion of the visual elements and what they represent`,
     
     educational: `
-Style: Educational/teaching format
-- ${speaker1Name} is the teacher/instructor explaining concepts
-- ${speaker2Name} is the curious student asking questions
+STYLE: Educational/teaching format
+- ${speaker1Name} is the teacher/instructor explaining the presentation
+- ${speaker2Name} is an engaged student asking clarifying questions
 - Include "aha" moments and learning confirmations
-- Break down complex topics into digestible pieces`,
+- Break down complex topics from the slides into digestible explanations
+- The teacher should reference specific slides and images
+- Include explanations of why certain points are important`,
     
     debate: `
-Style: Friendly debate/discussion with different perspectives
-- ${speaker1Name} presents one viewpoint
-- ${speaker2Name} presents alternative perspectives or counterpoints
+STYLE: Friendly debate with different perspectives
+- ${speaker1Name} presents viewpoints aligned with the presentation
+- ${speaker2Name} offers alternative perspectives or plays devil's advocate
 - Keep it respectful and constructive
-- Include moments of agreement and synthesis`
+- Include discussion of the evidence presented in slides
+- Reference specific data points and images to support arguments
+- Find common ground while exploring different angles`
   };
 
   return basePrompt + formatSpecific[format];
@@ -254,18 +148,25 @@ function extractTextFromSlide(slide: Slide): {
 } {
   const textObjects = slide.objects.filter(obj => obj.type === 'text') as TextObject[];
   
-  const titleObj = textObjects.find(obj => obj.role === 'title' || obj.role === 'heading');
+  // Get all text content, not just specific roles
+  const titleObj = textObjects.find(obj => 
+    obj.role === 'title' || obj.role === 'heading' || obj.role === 'header'
+  );
   const title = titleObj?.content || '';
   
+  // Get ALL text content from the slide
   const contentObjects = textObjects.filter(obj => 
-    obj.role !== 'title' && obj.role !== 'heading' && obj.role !== 'footer'
+    obj.role !== 'footer' && obj.role !== 'pageNumber'
   );
   const content = contentObjects.map(obj => obj.content);
   
-  // Extract image descriptions from generationDescription field (clean descriptions without style)
+  // Extract image descriptions - get both generationDescription and alt text
   const imageObjects = slide.objects.filter(obj => obj.type === 'image') as ImageObject[];
   const imageDescriptions = imageObjects
-    .map(obj => obj.generationDescription || obj.alt || '')
+    .map(obj => {
+      const desc = obj.generationDescription || obj.alt || '';
+      return desc ? `Image: ${desc}` : '';
+    })
     .filter(desc => desc.length > 0);
   
   const speakerNotes = slide.notes || '';
@@ -296,20 +197,36 @@ export function convertPresentationToContent(
 }
 
 function formatPresentationContent(content: PresentationContent): string {
-  let formatted = `Presentation Title: ${content.title}\n\n`;
+  let formatted = `PRESENTATION: ${content.title}
+Total Slides: ${content.slideCount}
+
+DETAILED SLIDE CONTENT:
+`;
   
   for (const slide of content.slides) {
-    formatted += `Slide ${slide.slideNumber}: ${slide.title}\n`;
+    formatted += `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SLIDE ${slide.slideNumber}${slide.title ? `: ${slide.title}` : ''}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`;
+    
     if (slide.content.length > 0) {
-      formatted += `Content:\n${slide.content.map(c => `- ${c}`).join('\n')}\n`;
+      formatted += `CONTENT:\n`;
+      slide.content.forEach(c => {
+        formatted += `• ${c}\n`;
+      });
     }
+    
     if (slide.imageDescriptions.length > 0) {
-      formatted += `Visual Elements:\n${slide.imageDescriptions.map(desc => `- Image: ${desc}`).join('\n')}\n`;
+      formatted += `\nVISUAL ELEMENTS:\n`;
+      slide.imageDescriptions.forEach(desc => {
+        formatted += `• ${desc}\n`;
+      });
     }
+    
     if (slide.speakerNotes) {
-      formatted += `Speaker Notes: ${slide.speakerNotes}\n`;
+      formatted += `\nSPEAKER NOTES:\n${slide.speakerNotes}\n`;
     }
-    formatted += '\n';
   }
   
   return formatted;
@@ -330,20 +247,38 @@ export async function generatePodcastScript(
   const systemPrompt = getSystemPromptForFormat(format, duration, voice1Gender, voice2Gender, language);
   const presentationData = formatPresentationContent(content);
   
-  const taskInstructions = getTaskInstructions(language, duration, format);
+  // Log the actual presentation content being used
+  console.log('=== PODCAST GENERATION DEBUG ===');
+  console.log('Presentation Title:', content.title);
+  console.log('Slide Count:', content.slideCount);
+  console.log('First 3 slides:', content.slides.slice(0, 3));
+  console.log('Formatted content preview:', presentationData.substring(0, 1000));
+  console.log('================================');
   
   const prompt = `${systemPrompt}
 
-${taskInstructions}
+Based on the following presentation content, create a ${duration}-minute ${format} podcast script.
+
+IMPORTANT: You MUST discuss ALL of the following content. Do not skip any slides or information.
 
 ${presentationData}
 
-${getFinalInstruction(language)}:`;
+REMEMBER:
+1. Start with an engaging introduction that mentions the presentation title
+2. Discuss EVERY slide in order, covering all bullet points and content
+3. Describe and react to ALL visual elements and images
+4. Incorporate the speaker notes as additional insights
+5. Keep the dialogue natural and conversational
+6. Include reactions, questions, and elaborations
+7. End with a meaningful summary and conclusion
+8. Target approximately ${duration} minutes of speaking time (roughly ${duration * 150} words)
+
+Generate the podcast script now. Use ONLY the format **SpeakerName:** for each line.`;
 
   const result = await model.generateContent(prompt);
   const response = result.response;
   
-  // Get the text from the response - check what methods are available
+  // Get the text from the response
   let text: string;
   if (typeof response.text === 'function') {
     text = response.text();
@@ -354,6 +289,6 @@ ${getFinalInstruction(language)}:`;
     throw new Error('Unable to extract text from response');
   }
   
-  // Return the script directly as markdown text, not JSON
+  // Return the script directly as markdown text
   return text.trim();
 }
