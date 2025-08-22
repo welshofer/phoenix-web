@@ -1,4 +1,3 @@
-import { geminiModel } from './gemini';
 import { Presentation } from '@/lib/models/presentation';
 import { Slide, TextObject, ImageObject, SlideObjectUnion } from '@/lib/models/slide';
 
@@ -324,6 +323,8 @@ export async function generatePodcastScript(
   voice2Gender: 'male' | 'female' = 'male',
   language: string = 'en'
 ): Promise<string> {
+  // Dynamically import gemini only on server-side
+  const { geminiModel } = await import('./gemini');
   const model = geminiModel;
   
   const systemPrompt = getSystemPromptForFormat(format, duration, voice1Gender, voice2Gender, language);
