@@ -5,7 +5,8 @@ import {
   ImageGenerationJob 
 } from '@/lib/firebase/image-queue';
 import { IMAGE_STYLES } from '@/lib/constants/image-styles';
-import { uploadMultipleImages, generateImagePath } from '@/lib/firebase/storage';
+import { uploadMultipleImagesServer } from '@/lib/firebase/server-storage';
+import { generateImagePath } from '@/lib/firebase/storage';
 
 /**
  * Process image generation queue - SIMPLIFIED VERSION
@@ -20,6 +21,9 @@ const MODEL = 'imagegeneration@006';
 // Track last request time globally
 let lastRequestTime = 0;
 const MIN_REQUEST_INTERVAL = 9000; // 9 seconds between requests
+
+// Prevent concurrent processing with timeout
+let processingTimeout: NodeJS.Timeout | null = null;
 
 async function getAccessToken(): Promise<string> {
   try {
@@ -116,10 +120,12 @@ async function generateImageVariants(
       .map((prediction: any) => prediction.bytesBase64Encoded)
       .filter(Boolean);
     
-    // For now, skip Firebase Storage upload and use data URLs
-    // Storage upload is failing due to server-side auth issues
-    const imageUrls = base64Images.map(base64 => `data:image/png;base64,${base64}`);
-    console.log(`Generated ${imageUrls.length} image data URLs`);
+    // Upload to Firebase Storage
+    const storagePath = generateImagePath(job.presentationId, job.slideId, job.id);
+    console.log(`Uploading ${base64Images.length} images to storage at ${storagePath}`);
+    
+    const imageUrls = await uploadMultipleImagesServer(base64Images, storagePath);
+    console.log(`Successfully uploaded ${imageUrls.length} images to Firebase Storage`);
     
     return { 
       imageUrls, 
@@ -145,11 +151,31 @@ export default async function handler(
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Check if already processing
+  if (processingTimeout) {
+    console.log('Already processing another job, skipping');
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Already processing',
+      processed: 0 
+    });
+  }
+
   try {
+    // Set processing timeout (clear after 30 seconds to prevent stuck locks)
+    processingTimeout = setTimeout(() => {
+      console.log('Processing timeout cleared');
+      processingTimeout = null;
+    }, 30000);
+    
     // Get next job from queue
     const job = await getNextPendingJob();
     
     if (!job) {
+      if (processingTimeout) {
+        clearTimeout(processingTimeout);
+        processingTimeout = null;
+      }
       return res.status(200).json({ 
         success: true, 
         message: 'No pending jobs',
@@ -178,6 +204,10 @@ export default async function handler(
         
         console.log(`Job ${job.id} will retry (attempt ${retryCount}/${maxRetries})`);
         
+        if (processingTimeout) {
+          clearTimeout(processingTimeout);
+          processingTimeout = null;
+        }
         return res.status(200).json({
           success: false,
           jobId: job.id,
@@ -192,6 +222,10 @@ export default async function handler(
           retryCount,
         });
         
+        if (processingTimeout) {
+          clearTimeout(processingTimeout);
+          processingTimeout = null;
+        }
         return res.status(200).json({
           success: false,
           jobId: job.id,
@@ -212,18 +246,26 @@ export default async function handler(
     // This would require updating the slide in the presentation document
     // For now, we'll rely on real-time listeners to update the UI
     
-    console.log(`Completed job ${job.id}: ${imageUrls.length} variants generated`);
+    console.log(`Completed job ${job.id}: ${result.imageUrls.length} variants generated`);
     
+    if (processingTimeout) {
+      clearTimeout(processingTimeout);
+      processingTimeout = null;
+    }
     return res.status(200).json({
       success: true,
       jobId: job.id,
       slideId: job.slideId,
-      variantCount: imageUrls.length,
+      variantCount: result.imageUrls.length,
       processed: 1,
     });
     
   } catch (error) {
     console.error('Error processing queue:', error);
+    if (processingTimeout) {
+      clearTimeout(processingTimeout);
+      processingTimeout = null;
+    }
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Failed to process queue',

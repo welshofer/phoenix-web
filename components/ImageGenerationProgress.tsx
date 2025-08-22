@@ -25,15 +25,16 @@ interface ImageGenerationProgressProps {
   presentationId: string;
   onImagesReady?: (slideImages: Map<string, string[]>, jobData?: any[]) => void;
   compact?: boolean;  // For showing in header/toolbar
+  disableProcessing?: boolean;  // Disable queue processing (for duplicate instances)
 }
 
 export default function ImageGenerationProgress({ 
   presentationId,
   onImagesReady,
-  compact = false
+  compact = false,
+  disableProcessing = false
 }: ImageGenerationProgressProps) {
   const [expanded, setExpanded] = React.useState(true);
-  const [processingInterval, setProcessingInterval] = React.useState<NodeJS.Timeout | null>(null);
   
   const {
     jobs,
@@ -48,47 +49,39 @@ export default function ImageGenerationProgress({
   const totalCount = jobs.length;
   const progress = totalCount > 0 ? ((completedCount + failedCount) / totalCount) * 100 : 0;
 
-  // Start continuous processing when there are pending jobs
+  // Start continuous processing - only depends on mount/unmount
   useEffect(() => {
-    if (pendingCount > 0 && !processingInterval) {
-      // Process one job every 12 seconds to be extra safe
-      const interval = setInterval(async () => {
-        try {
-          const response = await fetch('/api/imagen/process-continuous', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-          });
-          
-          const result = await response.json();
-          console.log('Queue processor:', result.message);
-          
-          // Stop if no more jobs
-          if (result.processedCount === 0 && pendingCount === 0) {
-            clearInterval(interval);
-            setProcessingInterval(null);
-          }
-        } catch (error) {
-          console.error('Failed to process queue:', error);
-        }
-      }, 12000); // Process one job every 12 seconds (5 per minute max)
-      
-      setProcessingInterval(interval);
-    }
+    // Only the full widget processes, not the compact one
+    if (disableProcessing || compact) return;
     
-    return () => {
-      if (processingInterval) {
-        clearInterval(processingInterval);
+    const triggerProcessing = async () => {
+      try {
+        await fetch('/api/imagen/process-continuous', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        console.error('Failed to process queue:', error);
       }
     };
-  }, [pendingCount, processingInterval]);
+    
+    // Start processing immediately
+    triggerProcessing();
+    
+    // Then continue every 12 seconds
+    const interval = setInterval(triggerProcessing, 12000);
+    
+    // Cleanup on unmount
+    return () => clearInterval(interval);
+  }, [presentationId, disableProcessing]); // Only re-run if presentationId or disableProcessing changes
 
-  // Notify when images are ready
+  // Notify when images are ready - only when completed count changes
   useEffect(() => {
     if (completedCount > 0 && onImagesReady) {
       const completedJobs = jobs.filter(j => j.status === 'completed');
       onImagesReady(getCompletedImages(), completedJobs);
     }
-  }, [completedCount, getCompletedImages, onImagesReady, jobs]);
+  }, [completedCount]); // Only trigger when completedCount actually changes
 
   if (totalCount === 0) {
     return null;
@@ -129,12 +122,6 @@ export default function ImageGenerationProgress({
         if (!response.ok) {
           console.error('Failed to retry job:', job.id);
         }
-      }
-      
-      // Start processing again
-      if (processingInterval) {
-        clearInterval(processingInterval);
-        setProcessingInterval(null);
       }
     } catch (error) {
       console.error('Error retrying failed jobs:', error);
@@ -199,15 +186,9 @@ export default function ImageGenerationProgress({
       <Collapse in={expanded}>
         <Box sx={{ p: 2, maxHeight: 300, overflowY: 'auto' }}>
           <Stack spacing={1}>
-            {pendingCount > 0 && (
-              <Alert severity="info" icon={<PendingIcon />} sx={{ py: 0.5 }}>
-                {pendingCount} image{pendingCount !== 1 ? 's' : ''} waiting
-              </Alert>
-            )}
-            
-            {processingCount > 0 && (
+            {(pendingCount > 0 || processingCount > 0) && (
               <Alert severity="info" icon={<PlayIcon />} sx={{ py: 0.5 }}>
-                Generating {processingCount} image{processingCount !== 1 ? 's' : ''}...
+                Processing images... ({pendingCount} waiting, {processingCount} generating)
               </Alert>
             )}
             

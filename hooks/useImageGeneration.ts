@@ -35,12 +35,7 @@ export function useImageGeneration(presentationId: string | null) {
     // Subscribe to real-time updates
     const unsubscribe = subscribeToImageUpdates(presentationId, (jobs) => {
       updateState(jobs);
-      
-      // Trigger queue processing if there are pending jobs
-      const hasPending = jobs.some(job => job.status === 'pending');
-      if (hasPending) {
-        triggerQueueProcessing();
-      }
+      // Removed automatic queue triggering - let ImageGenerationProgress handle it
     });
 
     return () => unsubscribe();

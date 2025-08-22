@@ -575,6 +575,7 @@ export default function PresentationEditor() {
           <ImageGenerationProgress 
             presentationId={id as string} 
             compact={true}
+            disableProcessing={true}  // Main widget handles processing
           />
           
           <Divider orientation="vertical" flexItem />

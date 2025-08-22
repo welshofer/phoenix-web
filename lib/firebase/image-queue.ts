@@ -184,13 +184,18 @@ export function subscribeToImageUpdates(
     where('presentationId', '==', presentationId)
   );
   
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    const jobs: ImageGenerationJob[] = [];
-    snapshot.forEach((doc) => {
-      jobs.push({ ...doc.data(), id: doc.id } as ImageGenerationJob);
-    });
-    onUpdate(jobs);
-  });
+  const unsubscribe = onSnapshot(q, 
+    (snapshot) => {
+      const jobs: ImageGenerationJob[] = [];
+      snapshot.forEach((doc) => {
+        jobs.push({ ...doc.data(), id: doc.id } as ImageGenerationJob);
+      });
+      onUpdate(jobs);
+    },
+    (error) => {
+      console.error('Firestore subscription error:', error);
+    }
+  );
   
   return unsubscribe;
 }
