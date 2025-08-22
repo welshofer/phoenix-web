@@ -1,4 +1,4 @@
-import { getGenerativeModelInstance } from './vertex-config';
+import { geminiModel } from './gemini';
 import { Presentation } from '@/lib/models/presentation';
 import { Slide, TextObject, ImageObject, SlideObjectUnion } from '@/lib/models/slide';
 
@@ -324,7 +324,7 @@ export async function generatePodcastScript(
   voice2Gender: 'male' | 'female' = 'male',
   language: string = 'en'
 ): Promise<string> {
-  const model = getGenerativeModelInstance();
+  const model = geminiModel;
   
   const systemPrompt = getSystemPromptForFormat(format, duration, voice1Gender, voice2Gender, language);
   const presentationData = formatPresentationContent(content);
