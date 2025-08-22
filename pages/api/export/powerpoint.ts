@@ -132,9 +132,14 @@ async function processSlideObject(
 function addTextObject(slide: PptxGenJS.Slide, textObj: TextObject): void {
   const position = convertCoordinates(textObj.coordinates);
   
+  // Scale font size from pixels to points
+  // Web uses pixels, PowerPoint uses points
+  // At 96 DPI: 1 pixel = 0.75 points
+  const scaledFontSize = (textObj.customStyles?.fontSize || 18) * 0.75;
+  
   const options: PptxGenJS.TextPropsOptions = {
     ...position,
-    fontSize: textObj.customStyles?.fontSize || 18,
+    fontSize: scaledFontSize,
     bold: (textObj.customStyles?.fontWeight || 400) >= 600,
     color: textObj.customStyles?.color?.replace('#', '') || '000000',
     align: textObj.customStyles?.textAlign || 'left',
