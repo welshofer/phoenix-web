@@ -149,16 +149,36 @@ function addTextObject(slide: PptxGenJS.Slide, textObj: TextObject): void {
 async function addImageObject(slide: PptxGenJS.Slide, imageObj: ImageObject): Promise<void> {
   const position = convertCoordinates(imageObj.coordinates);
   
-  // Don't use sizing property - let pptxgenjs handle aspect ratio
-  // Just set the bounding box and the image will fit proportionally
+  // IMPORTANT: We need to maintain aspect ratio
+  // The image should fit within the bounds but NOT stretch to fill
+  // We'll calculate the proper dimensions based on 16:9 aspect ratio
+  
+  const targetAspectRatio = 16 / 9;
+  const boxAspectRatio = position.w / position.h;
+  
+  let finalWidth = position.w;
+  let finalHeight = position.h;
+  let offsetX = 0;
+  let offsetY = 0;
+  
+  if (boxAspectRatio > targetAspectRatio) {
+    // Box is wider than image aspect ratio - fit by height
+    finalWidth = position.h * targetAspectRatio;
+    offsetX = (position.w - finalWidth) / 2; // Center horizontally
+  } else if (boxAspectRatio < targetAspectRatio) {
+    // Box is taller than image aspect ratio - fit by width
+    finalHeight = position.w / targetAspectRatio;
+    offsetY = (position.h - finalHeight) / 2; // Center vertically
+  }
+  // If equal, use the box dimensions as-is
+  
   const options: PptxGenJS.ImageProps = {
-    x: position.x,
-    y: position.y,
-    w: position.w,
-    h: position.h,
+    x: position.x + offsetX,
+    y: position.y + offsetY,
+    w: finalWidth,
+    h: finalHeight,
     path: imageObj.src,
     altText: imageObj.alt || ''
-    // No sizing property - this allows natural aspect ratio preservation
   };
 
   slide.addImage(options);
