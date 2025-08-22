@@ -87,15 +87,20 @@ export class PptxExporter {
   private async addImageObject(slide: PptxGenJS.Slide, imageObj: ImageObject): Promise<void> {
     const position = this.convertCoordinates(imageObj.coordinates);
     
+    // For images, we should maintain aspect ratio
+    // Use 'contain' to fit within bounds without distortion
     const options: PptxGenJS.ImageProps = {
-      ...position,
-      // Handle different image sources
+      x: position.x,
+      y: position.y,
+      w: position.w,
+      h: position.h,
       path: imageObj.src,
       altText: imageObj.alt || '',
+      // Always use contain to prevent distortion
+      // This ensures the image fits within the specified bounds
+      // while maintaining its aspect ratio
       sizing: {
-        type: imageObj.fit === 'cover' ? 'cover' : 
-              imageObj.fit === 'contain' ? 'contain' : 
-              'crop',
+        type: 'contain',
         w: position.w,
         h: position.h
       }

@@ -143,14 +143,17 @@ function addTextObject(slide: PptxGenJS.Slide, textObj: TextObject): void {
 async function addImageObject(slide: PptxGenJS.Slide, imageObj: ImageObject): Promise<void> {
   const position = convertCoordinates(imageObj.coordinates);
   
+  // Always use 'contain' to maintain aspect ratio
+  // This prevents image distortion in PowerPoint
   const options: PptxGenJS.ImageProps = {
-    ...position,
+    x: position.x,
+    y: position.y,
+    w: position.w,
+    h: position.h,
     path: imageObj.src,
     altText: imageObj.alt || '',
     sizing: {
-      type: imageObj.fit === 'cover' ? 'cover' : 
-            imageObj.fit === 'contain' ? 'contain' : 
-            'crop',
+      type: 'contain',  // Always maintain aspect ratio
       w: position.w,
       h: position.h
     }
