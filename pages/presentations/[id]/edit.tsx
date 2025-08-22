@@ -62,6 +62,7 @@ import {
 import { SlideRenderer } from '@/components/SlideRenderer';
 import ImageGenerationProgress from '@/components/ImageGenerationProgress';
 import ExportDialog from '@/components/ExportDialog';
+import PodcastExportDialog from '@/components/PodcastExportDialog';
 import { useAuth } from '@/hooks/useAuth';
 import {
   getPresentation,
@@ -112,6 +113,7 @@ export default function PresentationEditor() {
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [podcastDialogOpen, setPodcastDialogOpen] = useState(false);
   const [propertyTab, setPropertyTab] = useState(0);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as any });
   
@@ -1018,7 +1020,22 @@ export default function PresentationEditor() {
         onClose={() => setExportDialogOpen(false)}
         slides={slides}
         presentationTitle={presentation?.title || 'Presentation'}
+        presentationId={id as string}
+        onPodcastClick={() => {
+          setExportDialogOpen(false);
+          setPodcastDialogOpen(true);
+        }}
       />
+      
+      {/* Podcast Export Dialog */}
+      {id && typeof id === 'string' && (
+        <PodcastExportDialog
+          open={podcastDialogOpen}
+          onClose={() => setPodcastDialogOpen(false)}
+          presentationId={id}
+          presentationTitle={presentation?.title || 'Presentation'}
+        />
+      )}
       
       {/* Image Generation Progress */}
       {id && typeof id === 'string' && (

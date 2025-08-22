@@ -25,6 +25,7 @@ import {
   Download as DownloadIcon,
   PictureAsPdf as PdfIcon,
   Slideshow as PowerPointIcon,
+  Mic as PodcastIcon,
 } from '@mui/icons-material';
 import { Slide } from '@/lib/models/slide';
 import { PDFExporter, PDFLayout, PDFExportOptions } from '@/lib/export/pdf-export';
@@ -34,15 +35,19 @@ interface ExportDialogProps {
   onClose: () => void;
   slides: Slide[];
   presentationTitle?: string;
+  presentationId?: string;
+  onPodcastClick?: () => void;
 }
 
-type ExportFormat = 'powerpoint' | 'pdf';
+type ExportFormat = 'powerpoint' | 'pdf' | 'podcast';
 
 export default function ExportDialog({
   open,
   onClose,
   slides,
   presentationTitle = 'Presentation',
+  presentationId,
+  onPodcastClick,
 }: ExportDialogProps) {
   const [exportFormat, setExportFormat] = useState<ExportFormat>('powerpoint');
   const [exporting, setExporting] = useState(false);
@@ -55,6 +60,15 @@ export default function ExportDialog({
   const [pdfQuality, setPdfQuality] = useState(0.8);
 
   const handleExport = async () => {
+    if (exportFormat === 'podcast') {
+      // Close this dialog and open podcast dialog
+      onClose();
+      if (onPodcastClick) {
+        onPodcastClick();
+      }
+      return;
+    }
+
     setExporting(true);
     setError('');
     setProgress(0);
@@ -245,6 +259,12 @@ export default function ExportDialog({
               value="pdf"
               iconPosition="start"
             />
+            <Tab
+              icon={<PodcastIcon />}
+              label="Podcast"
+              value="podcast"
+              iconPosition="start"
+            />
           </Tabs>
         </Box>
 
@@ -264,6 +284,40 @@ export default function ExportDialog({
               <br />
               • File size: approximately {Math.round(slides.length * 0.5)}MB
             </Typography>
+          </Box>
+        )}
+
+        {exportFormat === 'podcast' && (
+          <Box>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Transform your presentation into an engaging conversational podcast with two AI hosts
+              discussing your content in a natural, dynamic format.
+            </Alert>
+            
+            <Typography variant="body2" color="text.secondary">
+              • Two AI hosts will discuss your presentation
+              <br />
+              • Natural conversation with questions and insights
+              <br />
+              • Choose from different conversation styles
+              <br />
+              • Export as audio file or text transcript
+              <br />
+              • Perfect for sharing or listening on-the-go
+            </Typography>
+            
+            <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Typography variant="body2" gutterBottom>
+                Click Continue to configure your podcast settings including:
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                • Conversation style (Professional, Casual, Educational)
+                <br />
+                • Host voices and speaking speed
+                <br />
+                • Episode length and format
+              </Typography>
+            </Box>
           </Box>
         )}
 
@@ -347,7 +401,9 @@ export default function ExportDialog({
           startIcon={exporting ? null : <DownloadIcon />}
           disabled={exporting || slides.length === 0}
         >
-          {exporting ? 'Exporting...' : `Export as ${exportFormat === 'powerpoint' ? 'PowerPoint' : 'PDF'}`}
+          {exporting ? 'Exporting...' : 
+            exportFormat === 'podcast' ? 'Continue to Podcast Settings' :
+            `Export as ${exportFormat === 'powerpoint' ? 'PowerPoint' : 'PDF'}`}
         </Button>
       </DialogActions>
     </Dialog>
