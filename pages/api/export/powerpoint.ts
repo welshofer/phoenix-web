@@ -138,20 +138,82 @@ function addTextObject(slide: PptxGenJS.Slide, textObj: TextObject): void {
   // Therefore, we need to scale up the font size by 2x
   const fontSize = (textObj.customStyles?.fontSize || 18) * 2;
   
-  const options: PptxGenJS.TextPropsOptions = {
-    ...position,
-    fontSize: fontSize,
-    bold: (textObj.customStyles?.fontWeight || 400) >= 600,
-    color: textObj.customStyles?.color?.replace('#', '') || '000000',
-    align: textObj.customStyles?.textAlign || 'left',
-    valign: 'top',
-    margin: 0,
-    wrap: true,
-    isTextBox: true  // Ensure text is treated as plain text, not formatted
-  };
-
-  // Pass text as plain string to avoid any markdown interpretation
-  slide.addText(textObj.content, options);
+  // Parse markdown-style bold formatting (**text**)
+  const textContent = textObj.content;
+  const boldPattern = /\*\*(.*?)\*\*/g;
+  
+  // Check if text contains markdown bold formatting
+  if (boldPattern.test(textContent)) {
+    // Create formatted text array for pptxgenjs
+    const formattedText: PptxGenJS.TextProps[] = [];
+    let lastIndex = 0;
+    
+    // Reset regex state
+    boldPattern.lastIndex = 0;
+    
+    let match;
+    while ((match = boldPattern.exec(textContent)) !== null) {
+      // Add text before the bold part (if any)
+      if (match.index > lastIndex) {
+        formattedText.push({
+          text: textContent.substring(lastIndex, match.index),
+          options: {
+            fontSize: fontSize,
+            bold: false,
+            color: textObj.customStyles?.color?.replace('#', '') || '000000'
+          }
+        });
+      }
+      
+      // Add the bold text (without asterisks)
+      formattedText.push({
+        text: match[1],
+        options: {
+          fontSize: fontSize,
+          bold: true,
+          color: textObj.customStyles?.color?.replace('#', '') || '000000'
+        }
+      });
+      
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // Add any remaining text after the last bold part
+    if (lastIndex < textContent.length) {
+      formattedText.push({
+        text: textContent.substring(lastIndex),
+        options: {
+          fontSize: fontSize,
+          bold: false,
+          color: textObj.customStyles?.color?.replace('#', '') || '000000'
+        }
+      });
+    }
+    
+    const options: PptxGenJS.TextPropsOptions = {
+      ...position,
+      align: textObj.customStyles?.textAlign || 'left',
+      valign: 'top',
+      margin: 0,
+      wrap: true
+    };
+    
+    slide.addText(formattedText, options);
+  } else {
+    // No markdown formatting, use simple text
+    const options: PptxGenJS.TextPropsOptions = {
+      ...position,
+      fontSize: fontSize,
+      bold: (textObj.customStyles?.fontWeight || 400) >= 600,
+      color: textObj.customStyles?.color?.replace('#', '') || '000000',
+      align: textObj.customStyles?.textAlign || 'left',
+      valign: 'top',
+      margin: 0,
+      wrap: true
+    };
+    
+    slide.addText(textContent, options);
+  }
 }
 
 async function addImageObject(slide: PptxGenJS.Slide, imageObj: ImageObject): Promise<void> {
