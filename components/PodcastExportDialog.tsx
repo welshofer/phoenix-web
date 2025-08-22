@@ -53,8 +53,8 @@ const PodcastExportDialog: React.FC<PodcastExportDialogProps> = ({
   
   const [format, setFormat] = useState<PodcastFormat>('conversation');
   const [duration, setDuration] = useState(10);
-  const [voice1, setVoice1] = useState('en-US-Journey-F');
-  const [voice2, setVoice2] = useState('en-US-Journey-D');
+  const [voice1, setVoice1] = useState('en-US-Polyglot-1');
+  const [voice2, setVoice2] = useState('en-US-Casual-K');
   const [language, setLanguage] = useState('en');
 
   const languages = [

@@ -22,8 +22,8 @@ export default async function handler(
     const { 
       script,
       language = 'en',
-      voice1 = 'en-US-Journey-F',
-      voice2 = 'en-US-Journey-D',
+      voice1 = 'en-US-Polyglot-1',
+      voice2 = 'en-US-Casual-K',
       voice1Gender,  // legacy support
       voice2Gender,  // legacy support
       speakingRate = 1.0,

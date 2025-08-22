@@ -344,34 +344,11 @@ ${getFinalInstruction(language)}:`;
   return response.text();
 }
 
-// Available Google Cloud TTS voices with descriptions
+// CHIRP VOICES ONLY - The best and most natural TTS voices
 export const availableVoices = {
   'en-US': [
     { id: 'en-US-Polyglot-1', name: 'Polyglot 1', gender: 'male', type: 'Chirp' },
     { id: 'en-US-Casual-K', name: 'Casual K', gender: 'male', type: 'Chirp' },
-    { id: 'en-US-Journey-F', name: 'Journey F', gender: 'female', type: 'Journey' },
-    { id: 'en-US-Journey-D', name: 'Journey D', gender: 'male', type: 'Journey' },
-    { id: 'en-US-Journey-O', name: 'Journey O', gender: 'female', type: 'Journey' },
-    { id: 'en-US-Neural2-A', name: 'Neural2 A', gender: 'male', type: 'Neural2' },
-    { id: 'en-US-Neural2-C', name: 'Neural2 C', gender: 'female', type: 'Neural2' },
-    { id: 'en-US-Neural2-D', name: 'Neural2 D', gender: 'male', type: 'Neural2' },
-    { id: 'en-US-Neural2-E', name: 'Neural2 E', gender: 'female', type: 'Neural2' },
-    { id: 'en-US-Neural2-F', name: 'Neural2 F', gender: 'female', type: 'Neural2' },
-    { id: 'en-US-Neural2-G', name: 'Neural2 G', gender: 'female', type: 'Neural2' },
-    { id: 'en-US-Neural2-H', name: 'Neural2 H', gender: 'female', type: 'Neural2' },
-    { id: 'en-US-Neural2-I', name: 'Neural2 I', gender: 'male', type: 'Neural2' },
-    { id: 'en-US-Neural2-J', name: 'Neural2 J', gender: 'male', type: 'Neural2' },
-    { id: 'en-US-Studio-O', name: 'Studio O', gender: 'female', type: 'Studio' },
-    { id: 'en-US-Studio-Q', name: 'Studio Q', gender: 'male', type: 'Studio' },
-    { id: 'en-US-News-K', name: 'News K', gender: 'female', type: 'News' },
-    { id: 'en-US-News-L', name: 'News L', gender: 'female', type: 'News' },
-    { id: 'en-US-News-N', name: 'News N', gender: 'male', type: 'News' },
-    { id: 'en-US-Wavenet-A', name: 'Wavenet A', gender: 'male', type: 'Wavenet' },
-    { id: 'en-US-Wavenet-B', name: 'Wavenet B', gender: 'male', type: 'Wavenet' },
-    { id: 'en-US-Wavenet-C', name: 'Wavenet C', gender: 'female', type: 'Wavenet' },
-    { id: 'en-US-Wavenet-D', name: 'Wavenet D', gender: 'male', type: 'Wavenet' },
-    { id: 'en-US-Wavenet-E', name: 'Wavenet E', gender: 'female', type: 'Wavenet' },
-    { id: 'en-US-Wavenet-F', name: 'Wavenet F', gender: 'female', type: 'Wavenet' },
   ]
 };
 

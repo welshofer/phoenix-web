@@ -18,8 +18,8 @@ export default async function handler(
       presentationId, 
       format = 'conversation',
       duration = 10,
-      voice1 = 'en-US-Journey-F',
-      voice2 = 'en-US-Journey-D',
+      voice1 = 'en-US-Polyglot-1',
+      voice2 = 'en-US-Casual-K',
       voice1Gender,  // legacy support
       voice2Gender,  // legacy support
       language = 'en'
