@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Box } from '@mui/material';
 import { Slide, SlideObjectUnion, ImageObject } from '@/lib/models/slide';
+import { TypographySet } from '@/lib/models/typography';
+import { getTypographyStyles, mapSlideRoleToTypographyRole } from '@/hooks/useTypography';
 
 interface PresentationSlideRendererProps {
   slide: Slide;
   width?: number;
   height?: number;
   isPresenting?: boolean;
+  typographySet?: TypographySet | null;
 }
 
 export function PresentationSlideRenderer({
@@ -14,6 +17,7 @@ export function PresentationSlideRenderer({
   width = 1920,
   height = 1080,
   isPresenting = false,
+  typographySet,
 }: PresentationSlideRendererProps) {
   const [imageVariants, setImageVariants] = useState<Map<string, number>>(new Map());
   const cycleIntervalsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -74,6 +78,13 @@ export function PresentationSlideRenderer({
     switch (obj.type) {
       case 'text':
         const textObj = obj as any;
+        
+        // Get typography styles based on typography set and role
+        const typographyRole = mapSlideRoleToTypographyRole(textObj.role);
+        const typographyStyles = typographySet 
+          ? getTypographyStyles(typographySet, typographyRole)
+          : {};
+        
         return (
           <Box
             key={obj.id}
@@ -81,20 +92,24 @@ export function PresentationSlideRenderer({
               ...baseStyles,
               display: 'flex',
               alignItems: textObj.role === 'title' || textObj.role === 'subtitle' ? 'center' : 'flex-start',
-              justifyContent: textObj.customStyles?.textAlign || 'left',
+              justifyContent: textObj.customStyles?.textAlign || typographyStyles.textAlign || 'left',
               padding: 2,
             }}
           >
             <Box
               component="div"
               sx={{
-                fontSize: textObj.customStyles?.fontSize || getFontSizeForRole(textObj.role),
-                fontWeight: textObj.customStyles?.fontWeight || getFontWeightForRole(textObj.role),
+                fontSize: textObj.customStyles?.fontSize || typographyStyles.fontSize || getFontSizeForRole(textObj.role),
+                fontWeight: textObj.customStyles?.fontWeight || typographyStyles.fontWeight || getFontWeightForRole(textObj.role),
+                fontFamily: typographyStyles.fontFamily || textObj.customStyles?.fontFamily,
                 color: textObj.customStyles?.color || getColorForRole(textObj.role),
-                textAlign: textObj.customStyles?.textAlign || 'left',
+                textAlign: textObj.customStyles?.textAlign || typographyStyles.textAlign || 'left',
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
-                lineHeight: getLineHeightForRole(textObj.role),
+                lineHeight: typographyStyles.lineHeight || getLineHeightForRole(textObj.role),
+                letterSpacing: typographyStyles.letterSpacing,
+                textTransform: typographyStyles.textTransform,
+                fontStyle: typographyStyles.fontStyle,
               }}
             >
               {textObj.content}

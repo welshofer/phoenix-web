@@ -30,6 +30,7 @@ import {
 import { PresentationSlideRenderer } from '@/components/PresentationSlideRenderer';
 import { getPresentation } from '@/lib/firebase/presentations';
 import { Slide } from '@/lib/models/slide';
+import { useTypography } from '@/hooks/useTypography';
 
 export default function PresentationMode() {
   const router = useRouter();
@@ -39,6 +40,7 @@ export default function PresentationMode() {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [typographySetId, setTypographySetId] = useState<string>('classic-professional');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showNotes, setShowNotes] = useState(false);
@@ -47,6 +49,9 @@ export default function PresentationMode() {
   const [isPaused, setIsPaused] = useState(false);
   const [transition, setTransition] = useState<'fade' | 'slide' | 'zoom'>('fade');
   const [showOverview, setShowOverview] = useState(false);
+  
+  // Typography hook
+  const { typographySet, fontsLoaded } = useTypography(typographySetId);
 
   // Load presentation
   useEffect(() => {
@@ -158,6 +163,11 @@ export default function PresentationMode() {
       if (data) {
         setPresentation(data);
         
+        // Load typography setting if exists
+        if (data.settings?.typographySetId) {
+          setTypographySetId(data.settings.typographySetId);
+        }
+        
         // Get slides
         if (data.slides) {
           setSlides(data.slides);
@@ -249,6 +259,7 @@ export default function PresentationMode() {
           width={window.innerWidth}
           height={window.innerHeight}
           isPresenting={true}
+          typographySet={typographySet}
         />
       );
     }

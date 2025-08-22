@@ -2,6 +2,8 @@ import React from 'react';
 import { Box, Typography, Paper } from '@mui/material';
 import { Slide, SlideObjectUnion, TextObject, ImageObject, ShapeObject } from '@/lib/models/slide';
 import { SLIDE_DIMENSIONS } from '@/lib/models/coordinates';
+import { TypographySet } from '@/lib/models/typography';
+import { getTypographyStyles, mapSlideRoleToTypographyRole } from '@/hooks/useTypography';
 
 interface SlideRendererProps {
   slide: Slide;
@@ -10,6 +12,7 @@ interface SlideRendererProps {
   isPresenting?: boolean;
   onObjectClick?: (objectId: string) => void;
   selectedObjectId?: string;
+  typographySet?: TypographySet | null;
 }
 
 export const SlideRenderer: React.FC<SlideRendererProps> = ({
@@ -19,6 +22,7 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({
   isPresenting = false,
   onObjectClick,
   selectedObjectId,
+  typographySet,
 }) => {
   // Calculate scale to fit container
   const scale = Math.min(
@@ -45,9 +49,22 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({
     switch (obj.type) {
       case 'text':
         const textObj = obj as TextObject;
-        const fontSize = getFontSizeForRole(textObj.role, scale);
-        const textAlign = getTextAlignForRole(textObj.role);
-        const fontWeight = getFontWeightForRole(textObj.role);
+        
+        // Get typography styles based on typography set and role
+        const typographyRole = mapSlideRoleToTypographyRole(textObj.role);
+        const typographyStyles = typographySet 
+          ? getTypographyStyles(typographySet, typographyRole)
+          : {};
+        
+        // Fallback to default styles if no typography set
+        const fontSize = typographyStyles.fontSize 
+          ? typographyStyles.fontSize * scale 
+          : getFontSizeForRole(textObj.role, scale);
+        const textAlign = typographyStyles.textAlign || getTextAlignForRole(textObj.role);
+        const fontWeight = typographyStyles.fontWeight || getFontWeightForRole(textObj.role);
+        const fontFamily = typographyStyles.fontFamily || textObj.fontFamily || 'Roboto, sans-serif';
+        const lineHeight = typographyStyles.lineHeight || 1.5;
+        const letterSpacing = typographyStyles.letterSpacing || 'normal';
         
         return (
           <Box
@@ -61,8 +78,11 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({
                 fontWeight,
                 textAlign,
                 color: textObj.color || '#000',
-                fontFamily: textObj.fontFamily || 'Roboto, sans-serif',
-                lineHeight: 1.5,
+                fontFamily,
+                lineHeight,
+                letterSpacing,
+                textTransform: typographyStyles.textTransform,
+                fontStyle: typographyStyles.fontStyle,
                 width: '100%',
                 height: '100%',
                 display: 'flex',

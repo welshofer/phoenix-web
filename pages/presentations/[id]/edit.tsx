@@ -63,7 +63,9 @@ import { SlideRenderer } from '@/components/SlideRenderer';
 import ImageGenerationProgress from '@/components/ImageGenerationProgress';
 import ExportDialog from '@/components/ExportDialog';
 import PodcastExportDialog from '@/components/PodcastExportDialog';
+import TypographySelector from '@/components/TypographySelector';
 import { useAuth } from '@/hooks/useAuth';
+import { useTypography } from '@/hooks/useTypography';
 import {
   getPresentation,
   updatePresentationSlides,
@@ -106,6 +108,7 @@ export default function PresentationEditor() {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
+  const [typographySetId, setTypographySetId] = useState<string>('classic-professional');
   
   // UI state
   const [loading, setLoading] = useState(true);
@@ -120,6 +123,9 @@ export default function PresentationEditor() {
   // History for undo/redo
   const [history, setHistory] = useState<Slide[][]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  
+  // Typography hook
+  const { typographySet, fontsLoaded } = useTypography(typographySetId);
 
   // Load presentation
   useEffect(() => {
@@ -147,6 +153,11 @@ export default function PresentationEditor() {
         // Initialize history
         setHistory([data.slides || []]);
         setHistoryIndex(0);
+        
+        // Load typography setting if exists
+        if (data.settings?.typographySetId) {
+          setTypographySetId(data.settings.typographySetId);
+        }
       }
     } catch (error) {
       console.error('Error loading presentation:', error);
@@ -262,7 +273,17 @@ export default function PresentationEditor() {
     
     try {
       setSaving(true);
+      // Save slides
       await updatePresentationSlides(id, slides);
+      
+      // Save settings including typography
+      await updatePresentationMetadata(id, {
+        settings: {
+          ...presentation?.settings,
+          typographySetId,
+        },
+      });
+      
       showSnackbar('Presentation saved successfully', 'success');
     } catch (error) {
       console.error('Error saving presentation:', error);
@@ -638,6 +659,7 @@ export default function PresentationEditor() {
                 height={540}
                 selectedObjectId={selectedObjectId}
                 onObjectClick={setSelectedObjectId}
+                typographySet={typographySet}
               />
             )}
           </Box>
@@ -994,12 +1016,36 @@ export default function PresentationEditor() {
         </TabPanel>
 
         <TabPanel value={propertyTab} index={2}>
-          <Typography variant="subtitle2" gutterBottom>
-            Theme Settings
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Theme customization coming soon...
-          </Typography>
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              Typography Style
+            </Typography>
+            <TypographySelector
+              value={typographySetId}
+              onChange={(newSetId) => {
+                setTypographySetId(newSetId);
+                // Auto-save when typography changes
+                if (presentation && typeof id === 'string') {
+                  updatePresentationMetadata(id, {
+                    settings: {
+                      ...presentation.settings,
+                      typographySetId: newSetId,
+                    },
+                  }).catch(console.error);
+                }
+              }}
+              showPreview
+            />
+            
+            <Divider sx={{ my: 3 }} />
+            
+            <Typography variant="subtitle2" gutterBottom>
+              Additional Theme Settings
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              More theme customization options coming soon...
+            </Typography>
+          </Box>
         </TabPanel>
       </Paper>
 

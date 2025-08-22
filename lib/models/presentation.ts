@@ -18,6 +18,7 @@ export interface Presentation {
 
 export interface PresentationSettings {
   theme?: string;
+  typographySetId?: string;
   aspectRatio?: '16:9' | '4:3' | '1:1';
   transitionEffect?: 'none' | 'fade' | 'slide';
   autoPlayDuration?: number;
