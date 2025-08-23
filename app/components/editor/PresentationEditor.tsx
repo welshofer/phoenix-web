@@ -4,14 +4,10 @@ import {
   AppBar,
   Toolbar,
   Typography,
-  IconButton,
   Button,
-  Drawer,
-  Divider,
   useTheme,
   useMediaQuery,
 } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
 import AddIcon from '@mui/icons-material/Add';
 import SaveIcon from '@mui/icons-material/Save';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -61,7 +57,6 @@ export const PresentationEditor: React.FC<PresentationEditorProps> = ({
   const [selectedSlideId, setSelectedSlideId] = useState<string | undefined>(
     presentation.slides[0]?.id
   );
-  const [drawerOpen, setDrawerOpen] = useState(!isMobile);
 
   const selectedSlideIndex = presentation.slides.findIndex(
     (slide) => slide.id === selectedSlideId
@@ -160,8 +155,6 @@ export const PresentationEditor: React.FC<PresentationEditorProps> = ({
     }
   };
 
-  const drawerWidth = isTablet ? 280 : 320;
-
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <AppBar
@@ -176,16 +169,6 @@ export const PresentationEditor: React.FC<PresentationEditorProps> = ({
         elevation={0}
       >
         <Toolbar>
-          <IconButton
-            edge="start"
-            color="inherit"
-            aria-label="menu"
-            onClick={() => setDrawerOpen(!drawerOpen)}
-            sx={{ mr: 2, display: { md: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             {presentation.title}
           </Typography>
@@ -222,47 +205,16 @@ export const PresentationEditor: React.FC<PresentationEditorProps> = ({
         </Toolbar>
       </AppBar>
 
-      {viewMode === 'outline' && (
-        <Drawer
-          variant={isMobile ? 'temporary' : 'persistent'}
-          open={drawerOpen}
-          onClose={() => setDrawerOpen(false)}
-          sx={{
-            width: drawerWidth,
-            flexShrink: 0,
-            '& .MuiDrawer-paper': {
-              width: drawerWidth,
-              boxSizing: 'border-box',
-              mt: '64px',
-            },
-          }}
-        >
-          <OutlineView
-            slides={presentation.slides}
-            onReorder={handleReorderSlides}
-            onSelectSlide={handleSelectSlide}
-            onDeleteSlide={handleDeleteSlide}
-            onDuplicateSlide={handleDuplicateSlide}
-            selectedSlideId={selectedSlideId}
-          />
-        </Drawer>
-      )}
-
       <Box
         component="main"
         sx={{
           flexGrow: 1,
           mt: '64px',
-          ml: viewMode === 'outline' && !isMobile && drawerOpen ? `${drawerWidth}px` : 0,
-          transition: theme.transitions.create(['margin'], {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
-          }),
           height: 'calc(100vh - 64px)',
           overflow: 'hidden',
         }}
       >
-        {viewMode === 'outline' && !drawerOpen && (
+        {viewMode === 'outline' && (
           <OutlineView
             slides={presentation.slides}
             onReorder={handleReorderSlides}
