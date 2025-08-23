@@ -48,6 +48,7 @@ interface GridViewProps {
   onSelectSlide: (slideId: string) => void;
   onDeleteSlide: (slideId: string) => void;
   onDuplicateSlide: (slideId: string) => void;
+  onDoubleClickSlide?: (slideId: string) => void;
   selectedSlideId?: string;
 }
 
@@ -59,6 +60,7 @@ interface SortableCardProps {
   onSelect: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onDoubleClick?: () => void;
 }
 
 const SortableCard: React.FC<SortableCardProps> = ({
@@ -69,6 +71,7 @@ const SortableCard: React.FC<SortableCardProps> = ({
   onSelect,
   onDelete,
   onDuplicate,
+  onDoubleClick,
 }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const {
@@ -167,6 +170,7 @@ const SortableCard: React.FC<SortableCardProps> = ({
         {...attributes}
         {...listeners}
         onClick={onSelect}
+        onDoubleClick={onDoubleClick}
         sx={{
           cursor: isDragging ? 'grabbing' : 'pointer',
           position: 'relative',
@@ -296,9 +300,17 @@ export const GridView: React.FC<GridViewProps> = ({
   onSelectSlide,
   onDeleteSlide,
   onDuplicateSlide,
+  onDoubleClickSlide,
   selectedSlideId,
 }) => {
-  const [columns, setColumns] = useState(4);
+  // Load saved columns preference from localStorage
+  const [columns, setColumns] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('gridViewColumns');
+      return saved ? parseInt(saved, 10) : 4;
+    }
+    return 4;
+  });
   
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -319,7 +331,12 @@ export const GridView: React.FC<GridViewProps> = ({
   };
 
   const handleColumnChange = (_: Event, newValue: number | number[]) => {
-    setColumns(newValue as number);
+    const newColumns = newValue as number;
+    setColumns(newColumns);
+    // Save preference to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('gridViewColumns', newColumns.toString());
+    }
   };
 
   return (
@@ -391,6 +408,7 @@ export const GridView: React.FC<GridViewProps> = ({
                   onSelect={() => onSelectSlide(slide.id)}
                   onDelete={() => onDeleteSlide(slide.id)}
                   onDuplicate={() => onDuplicateSlide(slide.id)}
+                  onDoubleClick={() => onDoubleClickSlide?.(slide.id)}
                 />
               ))}
             </Box>

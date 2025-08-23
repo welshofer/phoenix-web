@@ -76,10 +76,16 @@ export const PresentationEditor: React.FC<PresentationEditorProps> = ({
 
   const handleSelectSlide = useCallback((slideId: string) => {
     setSelectedSlideId(slideId);
-    if (viewMode === 'outline' || viewMode === 'grid') {
-      setViewMode('detail');
-    }
-  }, [viewMode]);
+  }, []);
+  
+  const handleDoubleClickSlideFromGrid = useCallback((slideId: string) => {
+    setSelectedSlideId(slideId);
+    setViewMode('detail');
+  }, []);
+  
+  const handleDoubleClickSlideFromDetail = useCallback(() => {
+    setViewMode('grid');
+  }, []);
 
   const handleDeleteSlide = useCallback((slideId: string) => {
     setPresentation((prev) => {
@@ -274,6 +280,7 @@ export const PresentationEditor: React.FC<PresentationEditorProps> = ({
             onSelectSlide={handleSelectSlide}
             onDeleteSlide={handleDeleteSlide}
             onDuplicateSlide={handleDuplicateSlide}
+            onDoubleClickSlide={handleDoubleClickSlideFromGrid}
             selectedSlideId={selectedSlideId}
           />
         )}
@@ -286,6 +293,7 @@ export const PresentationEditor: React.FC<PresentationEditorProps> = ({
             onEditSlide={handleEditSlide}
             onDeleteSlide={handleDeleteSlide}
             onDuplicateSlide={handleDuplicateSlide}
+            onDoubleClick={handleDoubleClickSlideFromDetail}
           />
         )}
       </Box>

@@ -38,6 +38,7 @@ interface DetailViewProps {
   onEditSlide: (slideId: string) => void;
   onDeleteSlide: (slideId: string) => void;
   onDuplicateSlide: (slideId: string) => void;
+  onDoubleClick?: () => void;
 }
 
 export const DetailView: React.FC<DetailViewProps> = ({
@@ -47,9 +48,24 @@ export const DetailView: React.FC<DetailViewProps> = ({
   onEditSlide,
   onDeleteSlide,
   onDuplicateSlide,
+  onDoubleClick,
 }) => {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const [windowSize, setWindowSize] = React.useState({ width: 1200, height: 675 });
   const currentSlide = slides[currentSlideIndex];
+
+  React.useEffect(() => {
+    const updateWindowSize = () => {
+      setWindowSize({ 
+        width: window.innerWidth, 
+        height: window.innerHeight 
+      });
+    };
+    
+    updateWindowSize();
+    window.addEventListener('resize', updateWindowSize);
+    return () => window.removeEventListener('resize', updateWindowSize);
+  }, []);
 
   const handlePrevious = () => {
     if (currentSlideIndex > 0) {
@@ -134,6 +150,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
       >
         <Fade in key={currentSlide.id}>
           <Box
+            onDoubleClick={onDoubleClick}
             sx={{
               width: isFullscreen ? '100%' : '90%',
               maxWidth: isFullscreen ? '100%' : 1200,
@@ -144,13 +161,14 @@ export const DetailView: React.FC<DetailViewProps> = ({
               borderRadius: isFullscreen ? 0 : 2,
               overflow: 'hidden',
               position: 'relative',
+              cursor: 'pointer',
             }}
           >
             {currentSlide.objects && currentSlide.objects.length > 0 ? (
               <SlideRenderer
                 slide={currentSlide as any}
-                width={isFullscreen ? window.innerWidth : 1200}
-                height={isFullscreen ? window.innerHeight : 675}
+                width={isFullscreen ? windowSize.width : 1200}
+                height={isFullscreen ? windowSize.height : 675}
                 isPresenting={isFullscreen}
               />
             ) : (
