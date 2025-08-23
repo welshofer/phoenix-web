@@ -112,7 +112,14 @@ export default function ExportDialog({
       setProgress(0.6);
       
       if (!response.ok) {
-        throw new Error('Failed to export PowerPoint');
+        let errorMessage = 'Failed to export PowerPoint';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.details || errorData.error || errorMessage;
+        } catch {
+          // If response is not JSON, use default error message
+        }
+        throw new Error(errorMessage);
       }
       
       // Get the blob from the response

@@ -1,5 +1,4 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import PptxGenJS from 'pptxgenjs';
 import { Slide, SlideObjectUnion, TextObject, ImageObject, ShapeObject, TableObject, ChartObject } from '@/lib/models/slide';
 import { Coordinates } from '@/lib/models/coordinates';
 
@@ -9,6 +8,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    // Dynamically import PptxGenJS to avoid SSR issues
+    const PptxGenJS = (await import('pptxgenjs')).default;
+    
     const { slides, presentationTitle = 'Presentation' } = req.body;
     
     if (!slides || !Array.isArray(slides)) {
@@ -44,7 +46,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
       
       // Sort objects by z-index to maintain layering
-      const sortedObjects = [...slideData.objects].sort(
+      const sortedObjects = [...(slideData.objects || [])].sort(
         (a, b) => (a.zIndex || 0) - (b.zIndex || 0)
       );
       
@@ -61,20 +63,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
     
-    // Generate the PowerPoint file
-    const pptxBuffer = await pptx.write({
-      outputType: 'nodebuffer'
-    });
+    // Generate the PowerPoint file as base64
+    const pptxBase64 = await pptx.write({ outputType: 'base64' });
+    
+    // Convert base64 to buffer
+    const buffer = Buffer.from(pptxBase64, 'base64');
     
     // Set response headers
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.presentationml.presentation');
     res.setHeader('Content-Disposition', `attachment; filename="${presentationTitle}.pptx"`);
+    res.setHeader('Content-Length', buffer.length.toString());
     
     // Send the buffer
-    res.send(Buffer.from(pptxBuffer as ArrayBuffer));
+    res.status(200).send(buffer);
   } catch (error) {
     console.error('PowerPoint export error:', error);
-    res.status(500).json({ error: 'Failed to export PowerPoint' });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+    console.error('Error details:', { message: errorMessage, stack: errorStack });
+    res.status(500).json({ 
+      error: 'Failed to export PowerPoint',
+      details: errorMessage 
+    });
   }
 }
 
@@ -102,34 +112,41 @@ function convertCoordinates(coords: Coordinates): {
 }
 
 async function processSlideObject(
-  pptx: PptxGenJS,
-  slide: PptxGenJS.Slide, 
+  pptx: any,
+  slide: any, 
   obj: SlideObjectUnion
 ): Promise<void> {
-  switch (obj.type) {
-    case 'text':
-      addTextObject(slide, obj as TextObject);
-      break;
-    case 'image':
-      await addImageObject(slide, obj as ImageObject);
-      break;
-    case 'shape':
-      addShapeObject(pptx, slide, obj as ShapeObject);
-      break;
-    case 'table':
-      addTableObject(slide, obj as TableObject);
-      break;
-    case 'chart':
-      addChartObject(pptx, slide, obj as ChartObject);
-      break;
-    case 'video':
-      // Videos can't be directly embedded in PowerPoint via pptxgenjs
-      console.warn('Video objects are not directly supported in PowerPoint export');
-      break;
+  try {
+    switch (obj.type) {
+      case 'text':
+        addTextObject(slide, obj as TextObject);
+        break;
+      case 'image':
+        await addImageObject(slide, obj as ImageObject);
+        break;
+      case 'shape':
+        addShapeObject(pptx, slide, obj as ShapeObject);
+        break;
+      case 'table':
+        addTableObject(slide, obj as TableObject);
+        break;
+      case 'chart':
+        addChartObject(pptx, slide, obj as ChartObject);
+        break;
+      case 'video':
+        // Videos can't be directly embedded in PowerPoint via pptxgenjs
+        console.warn('Video objects are not directly supported in PowerPoint export');
+        break;
+      default:
+        console.warn(`Unsupported object type: ${(obj as any).type}`);
+    }
+  } catch (error) {
+    console.error(`Error processing object ${obj.id}:`, error);
+    // Continue processing other objects even if one fails
   }
 }
 
-function addTextObject(slide: PptxGenJS.Slide, textObj: TextObject): void {
+function addTextObject(slide: any, textObj: TextObject): void {
   const position = convertCoordinates(textObj.coordinates);
   
   // Scale font size appropriately for PowerPoint
@@ -145,7 +162,7 @@ function addTextObject(slide: PptxGenJS.Slide, textObj: TextObject): void {
   // Check if text contains markdown bold formatting
   if (boldPattern.test(textContent)) {
     // Create formatted text array for pptxgenjs
-    const formattedText: PptxGenJS.TextProps[] = [];
+    const formattedText: any[] = [];
     let lastIndex = 0;
     
     // Reset regex state
@@ -190,7 +207,7 @@ function addTextObject(slide: PptxGenJS.Slide, textObj: TextObject): void {
       });
     }
     
-    const options: PptxGenJS.TextPropsOptions = {
+    const options: any = {
       ...position,
       align: textObj.customStyles?.textAlign || 'left',
       valign: 'top',
@@ -201,7 +218,7 @@ function addTextObject(slide: PptxGenJS.Slide, textObj: TextObject): void {
     slide.addText(formattedText, options);
   } else {
     // No markdown formatting, use simple text
-    const options: PptxGenJS.TextPropsOptions = {
+    const options: any = {
       ...position,
       fontSize: fontSize,
       bold: (textObj.customStyles?.fontWeight || 400) >= 600,
@@ -216,7 +233,7 @@ function addTextObject(slide: PptxGenJS.Slide, textObj: TextObject): void {
   }
 }
 
-async function addImageObject(slide: PptxGenJS.Slide, imageObj: ImageObject): Promise<void> {
+async function addImageObject(slide: any, imageObj: ImageObject): Promise<void> {
   const position = convertCoordinates(imageObj.coordinates);
   
   // IMPORTANT: We need to maintain aspect ratio
@@ -242,7 +259,7 @@ async function addImageObject(slide: PptxGenJS.Slide, imageObj: ImageObject): Pr
   }
   // If equal, use the box dimensions as-is
   
-  const options: PptxGenJS.ImageProps = {
+  const options: any = {
     x: position.x + offsetX,
     y: position.y + offsetY,
     w: finalWidth,
@@ -251,14 +268,26 @@ async function addImageObject(slide: PptxGenJS.Slide, imageObj: ImageObject): Pr
     altText: imageObj.alt || ''
   };
 
-  slide.addImage(options);
+  try {
+    slide.addImage(options);
+  } catch (error) {
+    console.error('Error adding image:', error);
+    // If image fails, add a placeholder text
+    slide.addText(`[Image: ${imageObj.alt || 'Image not available'}]`, {
+      ...position,
+      fontSize: 14,
+      color: '666666',
+      align: 'center',
+      valign: 'middle'
+    });
+  }
 }
 
-function addShapeObject(pptx: PptxGenJS, slide: PptxGenJS.Slide, shapeObj: ShapeObject): void {
+function addShapeObject(pptx: any, slide: any, shapeObj: ShapeObject): void {
   const position = convertCoordinates(shapeObj.coordinates);
   
   // Map our shape types to pptxgenjs shape types
-  let shapeType: PptxGenJS.ShapeType;
+  let shapeType: any;
   switch (shapeObj.shape) {
     case 'rectangle':
       shapeType = pptx.ShapeType.rect;
@@ -279,7 +308,7 @@ function addShapeObject(pptx: PptxGenJS, slide: PptxGenJS.Slide, shapeObj: Shape
       shapeType = pptx.ShapeType.rect;
   }
 
-  const options: PptxGenJS.ShapeProps = {
+  const options: any = {
     ...position,
     fill: { color: shapeObj.fill?.replace('#', '') || 'FFFFFF' },
     line: shapeObj.stroke ? {
@@ -291,15 +320,15 @@ function addShapeObject(pptx: PptxGenJS, slide: PptxGenJS.Slide, shapeObj: Shape
   slide.addShape(shapeType, options);
 }
 
-function addTableObject(slide: PptxGenJS.Slide, tableObj: TableObject): void {
+function addTableObject(slide: any, tableObj: TableObject): void {
   const position = convertCoordinates(tableObj.coordinates);
   
   // Prepare table data
-  const rows: PptxGenJS.TableRow[] = [];
+  const rows: any[] = [];
   
   // Add headers if present
   if (tableObj.headers && tableObj.headers.length > 0) {
-    const headerRow: PptxGenJS.TableCell[] = tableObj.headers.map(header => ({
+    const headerRow: any[] = tableObj.headers.map(header => ({
       text: header,
       options: {
         bold: true,
@@ -312,7 +341,7 @@ function addTableObject(slide: PptxGenJS.Slide, tableObj: TableObject): void {
   
   // Add data rows
   tableObj.data.forEach(row => {
-    const dataRow: PptxGenJS.TableCell[] = row.map(cell => ({
+    const dataRow: any[] = row.map(cell => ({
       text: String(cell),
       options: {
         fill: { color: tableObj.styles?.cellBackground?.replace('#', '') || 'FFFFFF' },
@@ -322,7 +351,12 @@ function addTableObject(slide: PptxGenJS.Slide, tableObj: TableObject): void {
     rows.push(dataRow);
   });
 
-  const tableOptions: PptxGenJS.TableProps = {
+  if (rows.length === 0) {
+    console.warn('Table has no data');
+    return;
+  }
+
+  const tableOptions: any = {
     ...position,
     border: tableObj.styles?.borderWidth ? {
       type: 'solid',
@@ -336,11 +370,11 @@ function addTableObject(slide: PptxGenJS.Slide, tableObj: TableObject): void {
   slide.addTable(rows, tableOptions);
 }
 
-function addChartObject(pptx: PptxGenJS, slide: PptxGenJS.Slide, chartObj: ChartObject): void {
+function addChartObject(pptx: any, slide: any, chartObj: ChartObject): void {
   const position = convertCoordinates(chartObj.coordinates);
   
   // Map chart types
-  let chartType: PptxGenJS.CHART_NAME;
+  let chartType: any;
   switch (chartObj.chartType) {
     case 'bar':
       chartType = pptx.ChartType.bar;
@@ -361,13 +395,13 @@ function addChartObject(pptx: PptxGenJS, slide: PptxGenJS.Slide, chartObj: Chart
       chartType = pptx.ChartType.bar;
   }
 
-  const chartData: PptxGenJS.IChartOpts[] = [{
+  const chartData: any[] = [{
     name: 'Series 1',
     labels: chartObj.data.labels || [],
     values: chartObj.data.values || []
   }];
 
-  const chartOptions: PptxGenJS.IChartOpts = {
+  const chartOptions: any = {
     ...position,
     chartColors: ['0088CC', 'FF6633', '99CC00', 'FF3366'],
     showLegend: true,
