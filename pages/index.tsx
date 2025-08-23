@@ -3,7 +3,7 @@ import { signInAnonymously } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
 import { useAuth } from '@/hooks/useAuth';
 import { Button, Box, Typography, Container, Paper } from '@mui/material';
-import { AutoAwesome, ViewCarousel } from '@mui/icons-material';
+import { AutoAwesome, ViewCarousel, Edit } from '@mui/icons-material';
 import { useRouter } from 'next/router';
 
 export default function Home() {
@@ -67,6 +67,15 @@ export default function Home() {
               disabled={loading || !user}
             >
               My Presentations
+            </Button>
+            
+            <Button
+              variant="outlined"
+              size="large"
+              startIcon={<Edit />}
+              onClick={() => router.push('/editor-demo')}
+            >
+              Editor Demo
             </Button>
           </Box>
           
