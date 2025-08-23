@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Grid,
-  Card,
-  CardMedia,
-  CardContent,
   Typography,
   Box,
   Slider,
@@ -31,6 +27,9 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import ViewColumnIcon from '@mui/icons-material/ViewColumn';
+import { SlideRenderer } from '@/components/SlideRenderer';
+import { Slide } from '@/lib/models/slide';
+
 // Simplified slide interface for the editor
 interface SimpleSlide {
   id: string;
@@ -40,6 +39,7 @@ interface SimpleSlide {
   content?: string;
   imageUrl?: string;
   order: number;
+  objects?: any[];  // For compatibility with SlideRenderer
 }
 
 interface GridViewProps {
@@ -95,21 +95,73 @@ const SortableCard: React.FC<SortableCardProps> = ({
     setAnchorEl(null);
   };
 
-  const getGridColumns = () => {
-    switch (columns) {
-      case 1: return { xs: 12 };
-      case 2: return { xs: 12, sm: 6 };
-      case 3: return { xs: 12, sm: 6, md: 4 };
-      case 4: return { xs: 12, sm: 6, md: 3 };
-      case 5: return { xs: 12, sm: 6, md: 2.4 };
-      case 6: return { xs: 12, sm: 4, md: 2 };
-      default: return { xs: 12, sm: 6, md: 4 };
+  // Calculate optimal size based on viewport and columns
+  const getSlideSize = () => {
+    if (columns === 1) {
+      // For single slide, fit within viewport with proper margins
+      return {
+        width: '100%',
+        maxWidth: 'min(calc(100vw - 80px), calc((100vh - 200px) * 16 / 9))',
+        aspectRatio: '16 / 9',
+      };
     }
+    // For multiple columns, calculate based on width
+    return {
+      width: `calc((100% - ${(columns - 1) * 16}px) / ${columns})`,
+      aspectRatio: '16 / 9',
+    };
+  };
+  
+  // Calculate render dimensions for SlideRenderer based on columns
+  const getRenderDimensions = () => {
+    // Base these on viewport to ensure slides fit
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1920;
+    const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 1080;
+    
+    if (columns === 1) {
+      // For single slide, use maximum available space while maintaining aspect ratio
+      const maxWidth = viewportWidth - 100;
+      const maxHeight = viewportHeight - 250; // Account for header and controls
+      
+      // Calculate which dimension is the limiting factor
+      const widthBasedHeight = maxWidth * 9 / 16;
+      const heightBasedWidth = maxHeight * 16 / 9;
+      
+      if (widthBasedHeight <= maxHeight) {
+        // Width is limiting factor
+        return {
+          width: maxWidth,
+          height: widthBasedHeight
+        };
+      } else {
+        // Height is limiting factor
+        return {
+          width: heightBasedWidth,
+          height: maxHeight
+        };
+      }
+    }
+    
+    // For multiple columns
+    const containerWidth = viewportWidth - 80;
+    const slideWidth = (containerWidth - (columns - 1) * 16) / columns;
+    const slideHeight = slideWidth * 9 / 16;
+    
+    return {
+      width: slideWidth,
+      height: slideHeight
+    };
   };
 
+  const slideSize = getSlideSize();
+
   return (
-    <Grid {...getGridColumns()}>
-      <Card
+    <Box 
+      sx={{ 
+        ...slideSize,
+      }}
+    >
+      <Box
         ref={setNodeRef}
         style={style}
         {...attributes}
@@ -118,79 +170,123 @@ const SortableCard: React.FC<SortableCardProps> = ({
         sx={{
           cursor: isDragging ? 'grabbing' : 'pointer',
           position: 'relative',
-          border: isSelected ? 2 : 1,
+          border: isSelected ? 3 : 1,
           borderColor: isSelected ? 'primary.main' : 'divider',
           transition: 'all 0.2s',
+          width: '100%',
+          height: '100%',
           '&:hover': {
-            boxShadow: 4,
-            transform: 'translateY(-2px)',
+            boxShadow: 6,
+            transform: 'translateY(-4px)',
+            borderColor: 'primary.light',
+            '& .slide-menu-button': {
+              opacity: 1,
+            },
           },
+          overflow: 'hidden',
+          borderRadius: 1,
         }}
       >
-        <Box sx={{ position: 'relative', paddingTop: '56.25%', bgcolor: 'grey.100' }}>
+        {slide.objects && slide.objects.length > 0 ? (() => {
+          const dimensions = getRenderDimensions();
+          return (
+            // Render slide with calculated dimensions
+            <Box sx={{ 
+              width: '100%', 
+              height: '100%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              overflow: 'hidden',
+              position: 'relative'
+            }}>
+              <SlideRenderer
+                slide={slide as any}
+                width={dimensions.width}
+                height={dimensions.height}
+                isPresenting={false}
+              />
+            </Box>
+          );
+        })() : (
+          // Fallback for empty slides
           <Box
             sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
+              width: '100%',
+              height: '100%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              bgcolor: 'background.paper',
+              bgcolor: 'grey.100',
             }}
           >
-            <Typography variant="h4" color="text.secondary">
+            <Typography 
+              variant="h4" 
+              color="text.disabled"
+            >
               {index + 1}
             </Typography>
           </Box>
-          <IconButton
-            size="small"
-            onClick={handleMenuOpen}
-            sx={{
-              position: 'absolute',
-              top: 8,
-              right: 8,
-              bgcolor: 'background.paper',
-              '&:hover': { bgcolor: 'background.paper' },
-            }}
-          >
-            <MoreVertIcon fontSize="small" />
-          </IconButton>
-        </Box>
-        <CardContent sx={{ py: 1 }}>
-          <Typography variant="body2" noWrap>
-            {slide.title || `Slide ${index + 1}`}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" noWrap>
-            {slide.type}
-          </Typography>
-        </CardContent>
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={handleMenuClose}
+        )}
+        {/* Slide number badge */}
+        <Box
+          sx={{
+            position: 'absolute',
+            bottom: 8,
+            left: 8,
+            bgcolor: 'rgba(0, 0, 0, 0.6)',
+            color: 'white',
+            px: 1,
+            py: 0.5,
+            borderRadius: 1,
+            fontSize: '0.75rem',
+            fontWeight: 500,
+          }}
         >
-          <MenuItem
-            onClick={() => {
-              onDuplicate();
-              handleMenuClose();
-            }}
-          >
-            Duplicate
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              onDelete();
-              handleMenuClose();
-            }}
-          >
-            Delete
-          </MenuItem>
-        </Menu>
-      </Card>
-    </Grid>
+          {index + 1}
+        </Box>
+        <IconButton
+          className="slide-menu-button"
+          size="small"
+          onClick={handleMenuOpen}
+          sx={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            bgcolor: 'rgba(255, 255, 255, 0.9)',
+            opacity: 0,
+            transition: 'opacity 0.2s',
+            '&:hover': { 
+              bgcolor: 'rgba(255, 255, 255, 0.95)',
+            },
+          }}
+        >
+          <MoreVertIcon fontSize="small" />
+        </IconButton>
+      </Box>
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem
+          onClick={() => {
+            onDuplicate();
+            handleMenuClose();
+          }}
+        >
+          Duplicate
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            onDelete();
+            handleMenuClose();
+          }}
+        >
+          Delete
+        </MenuItem>
+      </Menu>
+    </Box>
   );
 };
 
@@ -202,7 +298,7 @@ export const GridView: React.FC<GridViewProps> = ({
   onDuplicateSlide,
   selectedSlideId,
 }) => {
-  const [columns, setColumns] = useState(3);
+  const [columns, setColumns] = useState(4);
   
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -227,7 +323,7 @@ export const GridView: React.FC<GridViewProps> = ({
   };
 
   return (
-    <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <Box
         sx={{
           p: 2,
@@ -236,6 +332,7 @@ export const GridView: React.FC<GridViewProps> = ({
           display: 'flex',
           alignItems: 'center',
           gap: 2,
+          flexShrink: 0,
         }}
       >
         <Typography variant="h6" sx={{ flex: 1 }}>
@@ -258,7 +355,15 @@ export const GridView: React.FC<GridViewProps> = ({
         </Box>
       </Box>
 
-      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+      <Box sx={{ 
+        flex: 1, 
+        overflow: 'auto', 
+        p: 2,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        minHeight: 0, // Important for flex overflow
+      }}>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -268,7 +373,14 @@ export const GridView: React.FC<GridViewProps> = ({
             items={slides.map(s => s.id)}
             strategy={rectSortingStrategy}
           >
-            <Grid container spacing={2}>
+            <Box sx={{ 
+              display: 'flex', 
+              flexWrap: 'wrap', 
+              gap: 2,
+              justifyContent: columns === 1 ? 'center' : 'flex-start',
+              alignItems: 'flex-start',
+              width: '100%',
+            }}>
               {slides.map((slide, index) => (
                 <SortableCard
                   key={slide.id}
@@ -281,7 +393,7 @@ export const GridView: React.FC<GridViewProps> = ({
                   onDuplicate={() => onDuplicateSlide(slide.id)}
                 />
               ))}
-            </Grid>
+            </Box>
           </SortableContext>
         </DndContext>
       </Box>

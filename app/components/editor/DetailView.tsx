@@ -17,6 +17,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import FullscreenIcon from '@mui/icons-material/Fullscreen';
 import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
+import { SlideRenderer } from '@/components/SlideRenderer';
+
 // Simplified slide interface for the editor
 interface SimpleSlide {
   id: string;
@@ -26,6 +28,7 @@ interface SimpleSlide {
   content?: string;
   imageUrl?: string;
   order: number;
+  objects?: any[];  // For compatibility with SlideRenderer
 }
 
 interface DetailViewProps {
@@ -140,33 +143,49 @@ export const DetailView: React.FC<DetailViewProps> = ({
               boxShadow: isFullscreen ? 0 : 10,
               borderRadius: isFullscreen ? 0 : 2,
               overflow: 'hidden',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              position: 'relative',
             }}
           >
-            <Box sx={{ p: 4 }}>
-              <Typography variant="h3" gutterBottom>
-                {currentSlide.title || `Slide ${currentSlideIndex + 1}`}
-              </Typography>
-              {currentSlide.subtitle && (
-                <Typography variant="h5" color="text.secondary" gutterBottom>
-                  {currentSlide.subtitle}
+            {currentSlide.objects && currentSlide.objects.length > 0 ? (
+              <SlideRenderer
+                slide={currentSlide as any}
+                width={isFullscreen ? window.innerWidth : 1200}
+                height={isFullscreen ? window.innerHeight : 675}
+                isPresenting={isFullscreen}
+              />
+            ) : (
+              // Fallback for slides without objects
+              <Box sx={{ 
+                p: 4,
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
+                <Typography variant="h3" gutterBottom>
+                  {currentSlide.title || `Slide ${currentSlideIndex + 1}`}
                 </Typography>
-              )}
-              {currentSlide.content && (
-                <Typography variant="body1">
-                  {currentSlide.content}
-                </Typography>
-              )}
-              {currentSlide.imageUrl && (
-                <Box
-                  component="img"
-                  src={currentSlide.imageUrl}
-                  sx={{ width: '100%', maxHeight: 400, objectFit: 'contain', mt: 2 }}
-                />
-              )}
-            </Box>
+                {currentSlide.subtitle && (
+                  <Typography variant="h5" color="text.secondary" gutterBottom>
+                    {currentSlide.subtitle}
+                  </Typography>
+                )}
+                {currentSlide.content && (
+                  <Typography variant="body1">
+                    {currentSlide.content}
+                  </Typography>
+                )}
+                {currentSlide.imageUrl && (
+                  <Box
+                    component="img"
+                    src={currentSlide.imageUrl}
+                    sx={{ width: '100%', maxHeight: 400, objectFit: 'contain', mt: 2 }}
+                  />
+                )}
+              </Box>
+            )}
           </Box>
         </Fade>
 

@@ -28,6 +28,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
 import ImageIcon from '@mui/icons-material/Image';
+import { SlideRenderer } from '@/components/SlideRenderer';
 import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
 import { SortableSlideItem } from './SortableSlideItem';
 // Simplified slide interface for the editor
@@ -39,6 +40,7 @@ interface SimpleSlide {
   content?: string;
   imageUrl?: string;
   order: number;
+  objects?: any[];  // For compatibility with SlideRenderer
 }
 
 interface OutlineViewProps {
@@ -119,6 +121,9 @@ export const OutlineView: React.FC<OutlineViewProps> = ({
                     '&:hover': {
                       bgcolor: 'action.hover',
                     },
+                    display: 'flex',
+                    alignItems: 'center',
+                    py: 1,
                   }}
                   onClick={() => onSelectSlide(slide.id)}
                   secondaryAction={
@@ -149,18 +154,61 @@ export const OutlineView: React.FC<OutlineViewProps> = ({
                     </Box>
                   }
                 >
-                  <ListItemIcon>
-                    {getSlideIcon(slide.type)}
-                  </ListItemIcon>
+                  {/* Slide thumbnail preview */}
+                  <Box
+                    sx={{
+                      width: 80,
+                      height: 45,
+                      mr: 2,
+                      bgcolor: 'grey.100',
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      position: 'relative',
+                    }}
+                  >
+                    {slide.objects && slide.objects.length > 0 ? (
+                      <Box sx={{
+                        transform: 'scale(0.0417)', // Scale from 1920x1080 to 80x45
+                        transformOrigin: 'top left',
+                        width: 1920,
+                        height: 1080,
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        pointerEvents: 'none',
+                      }}>
+                        <SlideRenderer
+                          slide={slide as any}
+                          width={1920}
+                          height={1080}
+                          isPresenting={false}
+                          disableInteraction={true}
+                        />
+                      </Box>
+                    ) : (
+                      <Box
+                        sx={{
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {getSlideIcon(slide.type)}
+                      </Box>
+                    )}
+                  </Box>
                   <ListItemText
                     primary={
                       <Typography variant="body2" noWrap>
-                        {slide.title || `Slide ${index + 1}`}
+                        Slide {index + 1}: {slide.title || slide.type}
                       </Typography>
                     }
                     secondary={
                       <Typography variant="caption" color="text.secondary" noWrap>
-                        {slide.subtitle || slide.type}
+                        {slide.subtitle || `${slide.objects?.length || 0} objects`}
                       </Typography>
                     }
                   />
