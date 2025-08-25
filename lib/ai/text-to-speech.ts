@@ -39,13 +39,7 @@ export function parseScriptToSegments(
   
   const lines = script.split('\n');
   
-  console.log('=== PARSING SCRIPT ===');
-  console.log('Script type:', typeof script);
-  console.log('Script length:', script.length);
-  console.log('Number of lines:', lines.length);
-  console.log('First 10 lines:', lines.slice(0, 10));
-  console.log('Script preview:', script.substring(0, 500));
-  console.log('=====================');
+  // Parsing script for TTS processing
   
   // Use provided voice IDs or fall back to gender-based selection
   let voice1Name: string;
@@ -80,7 +74,7 @@ export function parseScriptToSegments(
     
     if (match) {
       matchCount++;
-      console.log(`Match ${matchCount}:`, match[1], ':', match[2].substring(0, 50));
+      // Found speaker dialogue match
       const speakerName = match[1].trim();
       const dialogue = match[2].trim();
       
@@ -101,8 +95,7 @@ export function parseScriptToSegments(
     }
   }
   
-  console.log(`Total matches found: ${matchCount}`);
-  console.log(`Total segments created: ${segments.length}`);
+  // Script parsing completed
   
   return segments;
 }

@@ -59,7 +59,7 @@ export default async function handler(
     // Combine description with style
     const prompt = `${description}, ${stylePrompt}`;
     
-    console.log('Generating image with Imagen 2, prompt:', prompt.substring(0, 100) + '...');
+    // Generating image with Imagen 2
     
     // Call Vertex AI REST API directly
     const endpoint = `https://${LOCATION}-aiplatform.googleapis.com/v1/projects/${PROJECT_ID}/locations/${LOCATION}/publishers/google/models/${MODEL}:predict`;
@@ -101,7 +101,7 @@ export default async function handler(
     }
     
     // Process all variants
-    console.log(`Received ${result.predictions.length} predictions from Imagen 2`);
+    // Received predictions from Imagen 2
     
     // Extract base64 images
     const base64Images = result.predictions
@@ -121,14 +121,14 @@ export default async function handler(
       ).replace(/\.png$/, '');
       
       imageUrls = await uploadMultipleImages(base64Images, basePath);
-      console.log(`Uploaded ${imageUrls.length} images to Firebase Storage`);
+      // Uploaded images to Firebase Storage
     } else {
       // Return data URLs for testing/preview
       imageUrls = base64Images.map((base64: string) => `data:image/png;base64,${base64}`);
-      console.log(`Returning ${imageUrls.length} data URLs`);
+      // Returning data URLs for testing/preview
     }
     
-    console.log(`Successfully processed ${imageUrls.length} image variants out of ${result.predictions.length} predictions`);
+    // Successfully processed image variants
     
     return res.status(200).json({
       success: true,

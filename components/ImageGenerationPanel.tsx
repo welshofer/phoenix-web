@@ -109,7 +109,6 @@ export const ImageGenerationPanel: React.FC<ImageGenerationPanelProps> = ({
 
     // For now, we'll need to create image generation jobs through the API
     // Since generateImages function doesn't exist in the hook
-    console.log('Generate all images requested with style:', selectedStyle);
     // TODO: Implement API call to create image generation jobs
   };
 
@@ -125,7 +124,6 @@ export const ImageGenerationPanel: React.FC<ImageGenerationPanelProps> = ({
     }));
 
     // For now, we'll need to create image generation jobs through the API
-    console.log('Generate images for slide:', slideId, 'with style:', selectedStyle);
     // TODO: Implement API call to create image generation jobs for specific slide
   };
 
@@ -264,7 +262,7 @@ export const ImageGenerationPanel: React.FC<ImageGenerationPanelProps> = ({
         <Button
           variant="contained"
           startIcon={isGenerating ? <Stop /> : <PlayArrow />}
-          onClick={isGenerating ? () => console.log('Stop generation') : handleGenerateAll}
+          onClick={isGenerating ? () => {} : handleGenerateAll}
           disabled={false}
           fullWidth
         >

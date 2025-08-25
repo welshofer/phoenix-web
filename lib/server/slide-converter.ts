@@ -111,13 +111,25 @@ export function createSlideFromAIContent(
           ));
         }
       }
-      if (aiSlide.imageDescription) {
+      // Handle imageDescriptions array or single imageDescription
+      const imgDesc = aiSlide.imageDescriptions?.[0] || aiSlide.imageDescription;
+      if (imgDesc) {
         const imageZone = layout.zones.find(z => z.role === 'image');
         if (imageZone) {
-          // Placeholder for image - in real app, this would trigger image generation
           objects.push(createImagePlaceholder(
-            aiSlide.imageDescription,
+            imgDesc,
             imageZone.coordinates
+          ));
+        }
+      }
+      // Add body text if present
+      if (aiSlide.body) {
+        const bodyZone = layout.zones.find(z => z.role === 'body');
+        if (bodyZone) {
+          objects.push(createTextObject(
+            aiSlide.body,
+            'body',
+            bodyZone.coordinates
           ));
         }
       }
@@ -186,6 +198,46 @@ export function createSlideFromAIContent(
       }
       break;
       
+    case SlideType.THREE_IMAGES:
+      // Three images layout
+      if (aiSlide.heading) {
+        const headerZone = layout.zones.find(z => z.role === 'header');
+        if (headerZone) {
+          objects.push(createTextObject(
+            aiSlide.heading,
+            'header',
+            headerZone.coordinates
+          ));
+        }
+      }
+      
+      // Add three image placeholders from imageDescriptions array
+      const imageDescriptions = aiSlide.imageDescriptions || [];
+      if (imageDescriptions.length > 0) {
+        // Main large image (left)
+        objects.push(createImagePlaceholder(
+          imageDescriptions[0] || 'Main image',
+          { x: 60, y: 120, width: 1080, height: 900 }
+        ));
+        
+        // Top right image
+        if (imageDescriptions[1]) {
+          objects.push(createImagePlaceholder(
+            imageDescriptions[1],
+            { x: 1170, y: 120, width: 690, height: 435 }
+          ));
+        }
+        
+        // Bottom right image
+        if (imageDescriptions[2]) {
+          objects.push(createImagePlaceholder(
+            imageDescriptions[2],
+            { x: 1170, y: 585, width: 690, height: 435 }
+          ));
+        }
+      }
+      break;
+      
     case SlideType.CONTENT:
     default:
       if (aiSlide.heading) {
@@ -199,45 +251,8 @@ export function createSlideFromAIContent(
         }
       }
       
-      // Check if we have an image description for content slides
-      if (aiSlide.imageDescription) {
-        // For content slides with images, split the layout
-        const imageZone = layout.zones.find(z => z.role === 'image');
-        const bodyZone = layout.zones.find(z => z.role === 'body');
-        
-        if (imageZone) {
-          objects.push(createImagePlaceholder(
-            aiSlide.imageDescription,
-            imageZone.coordinates
-          ));
-        } else if (bodyZone) {
-          // If no dedicated image zone, use right half of body zone for image
-          objects.push(createImagePlaceholder(
-            aiSlide.imageDescription,
-            {
-              x: bodyZone.coordinates.x + bodyZone.coordinates.width / 2 + 20,
-              y: bodyZone.coordinates.y,
-              width: bodyZone.coordinates.width / 2 - 40,
-              height: bodyZone.coordinates.height,
-            }
-          ));
-          
-          // Adjust text to left half
-          if (aiSlide.body) {
-            objects.push(createTextObject(
-              aiSlide.body,
-              'body',
-              {
-                x: bodyZone.coordinates.x,
-                y: bodyZone.coordinates.y,
-                width: bodyZone.coordinates.width / 2 - 20,
-                height: bodyZone.coordinates.height,
-              }
-            ));
-          }
-        }
-      } else if (aiSlide.body) {
-        // No image, use full width for text
+      // Always add body text for content slides
+      if (aiSlide.body) {
         const bodyZone = layout.zones.find(z => z.role === 'body');
         if (bodyZone) {
           objects.push(createTextObject(
@@ -317,6 +332,7 @@ function mapAITypeToSlideType(aiType: string): SlideType {
     'section': SlideType.SECTION,
     'bullets': SlideType.BULLETS,
     'image': SlideType.IMAGE,
+    'threeImages': SlideType.THREE_IMAGES,
     'imageWithText': SlideType.IMAGE_WITH_TEXT,
     'twoColumn': SlideType.TWO_COLUMN,
     'quote': SlideType.QUOTE,

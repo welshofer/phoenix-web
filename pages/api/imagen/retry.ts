@@ -28,7 +28,7 @@ export default async function handler(
       completedAt: undefined,
     });
 
-    console.log(`Job ${jobId} reset for retry`);
+    // Job reset for retry
 
     return res.status(200).json({
       success: true,

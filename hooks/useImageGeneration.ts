@@ -26,15 +26,16 @@ export function useImageGeneration(presentationId: string | null) {
 
   useEffect(() => {
     if (!presentationId) {
-      console.log('useImageGeneration: No presentationId provided');
+      // No presentationId provided
       return;
     }
 
-    console.log('useImageGeneration: Setting up for presentation:', presentationId);
+    // Setting up image generation for presentation
 
     // Load initial jobs
+    console.log('useImageGeneration: Loading jobs for presentation:', presentationId);
     getPresentationImageJobs(presentationId).then(jobs => {
-      console.log('useImageGeneration: Initial jobs loaded:', jobs.length, jobs);
+      console.log('useImageGeneration: Initial jobs loaded:', jobs.length);
       updateState(jobs);
     }).catch(error => {
       console.error('useImageGeneration: Error loading initial jobs:', error);
@@ -42,13 +43,13 @@ export function useImageGeneration(presentationId: string | null) {
 
     // Subscribe to real-time updates
     const unsubscribe = subscribeToImageUpdates(presentationId, (jobs) => {
-      console.log('useImageGeneration: Real-time update received:', jobs.length, jobs);
+      // Real-time update received
       updateState(jobs);
       // Removed automatic queue triggering - let ImageGenerationProgress handle it
     });
 
     return () => {
-      console.log('useImageGeneration: Cleaning up subscription for:', presentationId);
+      // Cleaning up subscription
       unsubscribe();
     };
   }, [presentationId]);
@@ -59,13 +60,7 @@ export function useImageGeneration(presentationId: string | null) {
     const completedCount = jobs.filter(j => j.status === 'completed').length;
     const failedCount = jobs.filter(j => j.status === 'failed').length;
     
-    console.log('Image generation state update:', {
-      total: jobs.length,
-      pending: pendingCount,
-      processing: processingCount,
-      completed: completedCount,
-      failed: failedCount
-    });
+    // Image generation state updated
     
     setState({
       jobs,

@@ -23,49 +23,11 @@
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "createdAt",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "presentations",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "createdBy",
-          "order": "ASCENDING"
+          "fieldPath": "priority",
+          "order": "DESCENDING"
         },
         {
           "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "presentations",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "metadata.userId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "metadata.createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "slides",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "presentationId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "order",
           "order": "ASCENDING"
         }
       ]

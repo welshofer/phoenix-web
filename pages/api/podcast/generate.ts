@@ -29,10 +29,8 @@ export default async function handler(
       return res.status(400).json({ error: 'Presentation ID is required' });
     }
 
-    console.log('Request body:', req.body);
 
     // Use Firebase Admin SDK to get the presentation
-    console.log('Fetching presentation with ID:', presentationId);
     
     let presentationDoc;
     try {
@@ -41,9 +39,7 @@ export default async function handler(
         .doc(presentationId)
         .get();
       
-      console.log('Presentation exists:', presentationDoc.exists);
       const rawData = presentationDoc.data();
-      console.log('Presentation raw data:', JSON.stringify(rawData, null, 2));
     } catch (dbError) {
       console.error('Firebase Admin error:', dbError);
       return res.status(500).json({ 
@@ -63,7 +59,6 @@ export default async function handler(
     } as Presentation;
 
     // Extract slides from the embedded sections array
-    console.log('Extracting slides from sections array');
     let slides: Slide[] = [];
     
     if (presentationData?.sections && Array.isArray(presentationData.sections)) {
@@ -75,24 +70,11 @@ export default async function handler(
           id: slide.id || `slide-${index}`,
           order: slide.order || index
         })) as Slide[];
-        console.log('Number of slides found in sections:', slides.length);
       } else {
-        console.log('No slides found in main section');
       }
     } else {
-      console.log('No sections array found in presentation');
     }
     
-    console.log('Total slides extracted:', slides.length);
-
-    console.log('=== PODCAST API DEBUG ===');
-    console.log('Presentation ID:', presentationId);
-    console.log('Presentation Title:', presentation.title || presentationData?.sections?.[0]?.title || 'Untitled');
-    console.log('Number of slides:', slides.length);
-    if (slides.length > 0) {
-      console.log('First slide:', JSON.stringify(slides[0], null, 2));
-    }
-    console.log('=========================');
     
     // Use section title as presentation title if main title doesn't exist
     if (!presentation.title && presentationData?.sections?.[0]?.title) {

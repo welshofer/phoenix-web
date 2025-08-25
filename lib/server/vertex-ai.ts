@@ -56,7 +56,7 @@ export async function getGeminiModel(modelName: string = 'gemini-2.5-flash') {
   return vertex.preview.getGenerativeModel({
     model: modelName,
     generationConfig: {
-      maxOutputTokens: 8192,
+      maxOutputTokens: 32768,  // Increased to handle 30+ slides with 4 image prompts each
       temperature: 0.7,
       topP: 0.95,
       topK: 40,

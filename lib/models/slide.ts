@@ -125,6 +125,7 @@ export enum SlideType {
   IMAGE_WITH_TEXT = 'imageWithText',
   TWO_COLUMN = 'twoColumn',
   THREE_COLUMN = 'threeColumn',
+  THREE_IMAGES = 'threeImages',
   QUOTE = 'quote',
   COMPARISON = 'comparison',
   TIMELINE = 'timeline',
@@ -182,6 +183,9 @@ export interface Slide {
     type: 'vertical' | 'horizontal';
     position: number;
   }>;
+  
+  // Image generation metadata (for AI-generated presentations)
+  imageDescriptions?: string[];  // Array of image descriptions for generation
 }
 
 // Helper type for slide content based on type

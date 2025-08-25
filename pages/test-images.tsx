@@ -19,7 +19,6 @@ export default function TestImages() {
         snapshot.forEach((doc) => {
           jobsList.push({ ...doc.data(), id: doc.id });
         });
-        console.log('Jobs from Firestore:', jobsList);
         setJobs(jobsList);
       },
       (error) => {

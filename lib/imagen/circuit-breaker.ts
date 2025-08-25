@@ -64,7 +64,7 @@ class CircuitBreaker {
         state: 'closed',
       };
       this.halfOpenRequests = 0;
-      console.log('Circuit breaker: Closed (service recovered)');
+      console.warn('Circuit breaker: Closed (service recovered)');
     } else if (this.state.state === 'closed') {
       // Reset failure count on success
       this.state.failures = 0;
@@ -81,11 +81,11 @@ class CircuitBreaker {
     if (this.state.state === 'half-open') {
       // Failure in half-open state reopens the circuit
       this.state.state = 'open';
-      console.log('Circuit breaker: Open (service still failing)');
+      console.warn('Circuit breaker: Open (service still failing)');
     } else if (this.state.failures >= FAILURE_THRESHOLD) {
       // Too many failures, open the circuit
       this.state.state = 'open';
-      console.log(`Circuit breaker: Open (${this.state.failures} failures)`);
+      console.warn(`Circuit breaker: Open (${this.state.failures} failures)`);
     }
   }
 
@@ -106,7 +106,7 @@ class CircuitBreaker {
       state: 'closed',
     };
     this.halfOpenRequests = 0;
-    console.log('Circuit breaker: Reset');
+    console.warn('Circuit breaker: Reset');
   }
 }
 
@@ -121,7 +121,7 @@ export async function withCircuitBreaker<T>(
   fallback?: T
 ): Promise<T> {
   if (!imagenCircuitBreaker.shouldAllow()) {
-    console.log('Circuit breaker: Request blocked (circuit open)');
+    console.warn('Circuit breaker: Request blocked (circuit open)');
     if (fallback !== undefined) {
       return fallback;
     }

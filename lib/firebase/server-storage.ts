@@ -7,12 +7,13 @@ if (!getApps().length) {
   initializeApp({
     credential: applicationDefault(),
     projectId: 'phoenix-web-app',
-    storageBucket: 'phoenix-web-app-images',  // Using our new bucket
+    storageBucket: 'phoenix-web-app-images',  // Actual GCS bucket that exists
   });
 }
 
 const storage = getStorage();
-const bucket = storage.bucket();
+// Use the actual bucket that exists in GCS
+const bucket = storage.bucket('phoenix-web-app-images');
 
 /**
  * Upload base64 image to Firebase Storage from server-side

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Paper } from '@mui/material';
+import { Box, Typography, Paper, Tooltip } from '@mui/material';
 import { Slide, SlideObjectUnion, TextObject, ImageObject, ShapeObject } from '@/lib/models/slide';
 import { SLIDE_DIMENSIONS } from '@/lib/models/coordinates';
 import { TypographySet } from '@/lib/models/typography';
@@ -29,6 +29,7 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({
     width / SLIDE_DIMENSIONS.WIDTH,
     height / SLIDE_DIMENSIONS.HEIGHT
   );
+  
 
   const renderObject = (obj: SlideObjectUnion) => {
     const isSelected = selectedObjectId === obj.id;
@@ -100,7 +101,9 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({
 
       case 'image':
         const imageObj = obj as ImageObject;
-        return (
+        // Show generation prompt or description as tooltip
+        const tooltipContent = imageObj.generationPrompt || imageObj.generationDescription || imageObj.alt || '';
+        const imageElement = (
           <Box
             key={obj.id}
             style={baseStyle}
@@ -112,8 +115,10 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({
               style={{
                 width: '100%',
                 height: '100%',
-                objectFit: imageObj.fit || 'contain',
-                borderRadius: 4,
+                objectFit: imageObj.fit || 'cover',
+                borderRadius: `${20 * scale}px`,
+                overflow: 'hidden',
+                cursor: 'pointer',
               }}
               onError={(e) => {
                 // Fallback for broken images
@@ -123,6 +128,23 @@ export const SlideRenderer: React.FC<SlideRendererProps> = ({
             />
           </Box>
         );
+        
+        // Wrap with tooltip if there's content to show
+        if (tooltipContent && imageObj.src && !imageObj.src.includes('placeholder')) {
+          return (
+            <Tooltip 
+              key={obj.id}
+              title={tooltipContent} 
+              placement="top"
+              arrow
+              enterDelay={500}
+              leaveDelay={200}
+            >
+              {imageElement}
+            </Tooltip>
+          );
+        }
+        return imageElement;
 
       case 'shape':
         const shapeObj = obj as ShapeObject;

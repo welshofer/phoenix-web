@@ -143,7 +143,7 @@ export const DetailView: React.FC<DetailViewProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          p: isFullscreen ? 0 : 4,
+          p: isFullscreen ? 0 : 2,
           bgcolor: isFullscreen ? 'black' : 'grey.50',
           position: 'relative',
         }}
@@ -152,10 +152,10 @@ export const DetailView: React.FC<DetailViewProps> = ({
           <Box
             onDoubleClick={onDoubleClick}
             sx={{
-              width: isFullscreen ? '100%' : '90%',
-              maxWidth: isFullscreen ? '100%' : 1200,
-              height: isFullscreen ? '100%' : 'auto',
-              aspectRatio: isFullscreen ? 'auto' : '16 / 9',
+              width: isFullscreen ? '100%' : 'calc(100% - 120px)',
+              maxWidth: isFullscreen ? '100%' : '100%',
+              height: isFullscreen ? '100%' : 'calc(100vh - 240px)',
+              maxHeight: isFullscreen ? '100%' : 'calc(100vh - 240px)',
               bgcolor: 'background.paper',
               boxShadow: isFullscreen ? 0 : 10,
               borderRadius: isFullscreen ? 0 : 2,
@@ -167,8 +167,8 @@ export const DetailView: React.FC<DetailViewProps> = ({
             {currentSlide.objects && currentSlide.objects.length > 0 ? (
               <SlideRenderer
                 slide={currentSlide as any}
-                width={isFullscreen ? windowSize.width : 1200}
-                height={isFullscreen ? windowSize.height : 675}
+                width={isFullscreen ? windowSize.width : windowSize.width - 120}
+                height={isFullscreen ? windowSize.height : windowSize.height - 240}
                 isPresenting={isFullscreen}
               />
             ) : (
@@ -199,7 +199,14 @@ export const DetailView: React.FC<DetailViewProps> = ({
                   <Box
                     component="img"
                     src={currentSlide.imageUrl}
-                    sx={{ width: '100%', maxHeight: 400, objectFit: 'contain', mt: 2 }}
+                    sx={{ 
+                      width: '100%', 
+                      maxHeight: 400, 
+                      objectFit: 'contain', 
+                      mt: 2,
+                      // Scale border radius based on viewport size
+                      borderRadius: `${Math.min(20, (windowSize.width / 1920) * 20)}px`
+                    }}
                   />
                 )}
               </Box>

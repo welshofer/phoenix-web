@@ -1,28 +1,37 @@
-# Phoenix Web Architecture Diagrams
+# Phoenix Web Architecture Diagrams (Updated)
 
-## System Architecture Overview
+## System Architecture Overview (Production-Ready)
 
 ```mermaid
 graph TB
     subgraph "Client Browser"
         UI[Next.js Frontend]
-        SR[Slide Renderer]
-        ED[Presentation Editor]
+        RQ[React Query Cache]
+        SR[Slide Renderer<br/>Lazy Loaded]
+        ED[Presentation Editor<br/>Lazy Loaded]
         PM[Presentation Mode]
     end
     
     subgraph "Next.js API Routes"
         API["/api/*"]
-        AGP["/api/ai/generate-presentation"]
-        AIG["/api/ai/generate-image"]
-        FP["/api/full-presentation"]
-        SP["/api/simple-presentation"]
+        subgraph "Protected Endpoints"
+            AGP["/api/ai/generate-presentation<br/>✅ Auth + Rate Limit"]
+            AIG["/api/imagen/*<br/>✅ Auth + Rate Limit"]
+            EXP["/api/export/*<br/>✅ Auth"]
+            POD["/api/podcast/*<br/>✅ Auth"]
+        end
+        MW[Middleware<br/>- Auth Verification<br/>- Rate Limiting<br/>- Input Validation]
+    end
+    
+    subgraph "Caching Layer"
+        REDIS[Upstash Redis<br/>- API Cache<br/>- Rate Limits<br/>- Sessions]
+        MEM[Memory Cache<br/>Fallback]
     end
     
     subgraph "Firebase Services"
-        AUTH[Firebase Auth]
-        FS[Firestore Database]
-        ST[Firebase Storage]
+        AUTH[Firebase Auth<br/>+ Admin SDK]
+        FS[Firestore Database<br/>✅ Security Rules]
+        ST[Firebase Storage<br/>✅ Security Rules]
     end
     
     subgraph "Google Cloud"
@@ -31,55 +40,89 @@ graph TB
         ADC[Application Default Credentials]
     end
     
-    UI --> API
+    subgraph "Error Recovery"
+        CB[Circuit Breakers]
+        EXB[Exponential Backoff]
+        RES[Resilient Wrappers]
+    end
+    
+    UI --> RQ
+    RQ --> API
     UI --> AUTH
     UI --> FS
     
-    API --> VAI
+    API --> MW
+    MW --> REDIS
+    MW --> AUTH
+    
+    AGP --> REDIS
+    AGP --> CB
+    CB --> VAI
     VAI --> GEM
     VAI --> ADC
-    
-    AGP --> VAI
-    AIG --> VAI
-    FP --> VAI
-    SP --> VAI
     
     ED --> FS
     PM --> FS
     SR --> FS
     
-    AUTH --> FS
+    FS --> RES
+    ST --> RES
+    AUTH --> RES
+    
+    REDIS --> MEM
 ```
 
-## Data Flow Diagram
+## Enhanced Data Flow with Security & Caching
 
 ```mermaid
 sequenceDiagram
     participant U as User
     participant UI as Next.js UI
+    participant RQ as React Query
     participant API as API Routes
-    participant FB as Firebase
+    participant VAL as Zod Validation
+    participant AUTH as Firebase Admin
+    participant RL as Rate Limiter
+    participant CACHE as Redis Cache
+    participant ERR as Error Handler
     participant VAI as Vertex AI
     participant FS as Firestore
     
     U->>UI: Enter presentation topic
-    UI->>UI: Validate input
-    UI->>API: POST /api/full-presentation
-    API->>VAI: Generate content (Gemini 2.5)
+    UI->>UI: Client-side validation
+    UI->>RQ: Check cache
+    RQ-->>UI: Cache miss
+    UI->>API: POST /api/ai/generate-presentation
+    
+    API->>VAL: Validate with Zod schema
+    VAL-->>API: Validation result
+    
+    API->>AUTH: Verify ID token
+    AUTH-->>API: Token valid
+    
+    API->>RL: Check rate limits
+    RL->>CACHE: Get user limits
+    CACHE-->>RL: Limits OK
+    
+    API->>CACHE: Check AI cache
+    CACHE-->>API: Cache miss
+    
+    API->>VAI: Generate content (30s timeout)
     VAI-->>API: Return JSON
-    API->>API: Parse & validate JSON
+    
+    API->>ERR: Parse & handle errors
+    ERR-->>API: Normalized response
+    
+    API->>CACHE: Store in cache
     API-->>UI: Return presentation data
-    UI->>FS: Save presentation
+    
+    UI->>RQ: Update cache
+    UI->>FS: Save presentation (with retry)
     FS-->>UI: Return presentation ID
     UI->>UI: Redirect to editor
-    U->>UI: Edit presentation
-    UI->>FS: Update slides
-    FS-->>UI: Confirm save
-    U->>UI: Start presentation
-    UI->>UI: Enter presentation mode
 ```
 
-## Component Architecture
+## Component Architecture with New Features
 
 ```mermaid
 graph TD
@@ -92,337 +135,534 @@ graph TD
         View[presentations/view.tsx]
     end
     
-    subgraph "Components"
-        SR[SlideRenderer]
-        SO[Slide Objects]
-        TO[TextObject]
-        IO[ImageObject]
-        SHO[ShapeObject]
+    subgraph "Lazy Components"
+        LC[LazyComponents.tsx]
+        LSR[LazySlideRenderer]
+        LED[LazyPresentationEditor]
+        LIG[LazyImageGenerationPanel]
+        LDG[LazyDataGrid]
+        LPE[LazyPowerPointExporter]
+    end
+    
+    subgraph "Providers"
+        QP[QueryProvider<br/>React Query]
+        AP[AuthProvider]
+        TP[ThemeProvider]
     end
     
     subgraph "Hooks"
         UA[useAuth]
+        UP[usePresentation<br/>+ Caching]
         UAI[useAI]
+        UIG[useImageGeneration]
     end
     
-    subgraph "Libraries"
+    subgraph "Core Libraries"
         FBC[firebase/config]
+        FBA[firebase/admin]
         FBP[firebase/presentations]
+        FER[firebase/error-recovery]
+    end
+    
+    subgraph "Server Libraries"
         VAL[server/vertex-ai]
         SC[server/slide-converter]
         RL[server/rate-limiter]
+        VS[validation/schemas]
+        EH[errors/handler]
     end
     
+    subgraph "Cache & Queue"
+        RC[cache/redis]
+        AQ[utils/async-queue]
+        PM[monitoring/performance]
+    end
+    
+    Home --> QP
     Home --> UA
-    Gen --> UA
-    Gen --> FBP
-    Gen --> VAL
+    Gen --> UP
+    Gen --> VS
     
-    Edit --> SR
-    Edit --> FBP
-    Edit --> SO
+    Edit --> LC
+    LC --> LSR
+    LC --> LED
     
-    Present --> SR
-    Present --> FBP
+    Edit --> FER
+    Present --> LSR
+    Present --> UP
     
-    SR --> TO
-    SR --> IO
-    SR --> SHO
+    UP --> RC
+    UP --> FER
     
-    List --> FBP
-    View --> SR
+    API --> FBA
+    API --> EH
+    API --> VS
+    
+    List --> LDG
+    View --> LSR
 ```
 
-## Slide Object Model
+## Security & Error Handling Architecture
 
 ```mermaid
-classDiagram
-    class Slide {
-        +string id
-        +SlideType type
-        +SlideObjectUnion[] objects
-        +number order
-        +string templateId
-        +string colorSetId
-        +string typographySetId
-        +Date createdAt
-        +Date updatedAt
-    }
+flowchart TB
+    subgraph "Request Flow"
+        REQ[Incoming Request]
+        MW[Middleware]
+        VAL[Zod Validation]
+        AUTH[Auth Check]
+        RATE[Rate Limit]
+        CACHE[Cache Check]
+        PROC[Process Request]
+        RES[Response]
+    end
     
-    class SlideObjectUnion {
-        <<interface>>
-        +string id
-        +string type
-        +Coordinates coordinates
-        +boolean visible
-    }
+    subgraph "Error Handling"
+        EH[Error Handler]
+        NE[Normalize Error]
+        AE[AppError Classes]
+        CB[Circuit Breaker]
+        EXB[Exponential Backoff]
+        LOG[Error Logging]
+    end
     
-    class TextObject {
-        +string content
-        +string role
-        +string fontFamily
-        +string color
-        +number fontSize
-    }
+    subgraph "Security Layers"
+        TOK[ID Token Verification]
+        RBAC[Role-Based Access]
+        INP[Input Sanitization]
+        SEC[Security Headers]
+        CORS[CORS Policy]
+    end
     
-    class ImageObject {
-        +string src
-        +string alt
-        +ImageFit fit
-    }
+    REQ --> MW
+    MW --> VAL
+    VAL -->|Invalid| EH
+    VAL -->|Valid| AUTH
+    AUTH -->|Fail| EH
+    AUTH -->|Pass| RATE
+    RATE -->|Exceeded| EH
+    RATE -->|OK| CACHE
+    CACHE -->|Hit| RES
+    CACHE -->|Miss| PROC
+    PROC -->|Error| EH
+    PROC -->|Success| RES
     
-    class ShapeObject {
-        +ShapeType shapeType
-        +string fill
-        +string stroke
-        +number strokeWidth
-    }
+    EH --> NE
+    NE --> AE
+    AE --> CB
+    CB --> EXB
+    EXB --> LOG
+    LOG --> RES
     
-    class Coordinates {
-        +number x
-        +number y
-        +number width
-        +number height
-    }
-    
-    Slide "1" --> "*" SlideObjectUnion
-    SlideObjectUnion <|-- TextObject
-    SlideObjectUnion <|-- ImageObject
-    SlideObjectUnion <|-- ShapeObject
-    SlideObjectUnion --> Coordinates
+    AUTH --> TOK
+    TOK --> RBAC
+    VAL --> INP
+    MW --> SEC
+    MW --> CORS
 ```
 
-## Presentation Generation Flow
-
-```mermaid
-flowchart LR
-    Start([User Input]) --> Validate{Valid?}
-    Validate -->|No| Error[Show Error]
-    Validate -->|Yes| Auth{Authenticated?}
-    Auth -->|No| AnonAuth[Anonymous Auth]
-    Auth -->|Yes| CheckRate[Check Rate Limits]
-    AnonAuth --> CheckRate
-    CheckRate -->|Exceeded| RateError[Rate Limit Error]
-    CheckRate -->|OK| CallAI[Call Vertex AI]
-    CallAI --> Parse{Parse JSON}
-    Parse -->|Error| Fallback[Use Fallback]
-    Parse -->|Success| Convert[Convert to Slides]
-    Fallback --> Convert
-    Convert --> Save[Save to Firestore]
-    Save --> Redirect[Redirect to Editor]
-    Redirect --> End([Edit Mode])
-```
-
-## Editor State Management
-
-```mermaid
-stateDiagram-v2
-    [*] --> Loading
-    Loading --> Loaded
-    Loading --> Error
-    
-    Loaded --> Editing
-    Editing --> Saving
-    Saving --> Saved
-    Saved --> Editing
-    
-    Editing --> AddObject
-    AddObject --> Editing
-    
-    Editing --> SelectObject
-    SelectObject --> EditProperties
-    EditProperties --> Editing
-    
-    Editing --> DeleteObject
-    DeleteObject --> Editing
-    
-    Editing --> ReorderSlides
-    ReorderSlides --> Editing
-    
-    Editing --> Presenting
-    Presenting --> Editing
-    
-    Error --> [*]
-```
-
-## Database Schema
+## Database Schema with Security Rules
 
 ```mermaid
 erDiagram
     USERS ||--o{ PRESENTATIONS : creates
-    PRESENTATIONS ||--|{ SECTIONS : contains
-    SECTIONS ||--|{ SLIDES : contains
+    PRESENTATIONS ||--|{ SLIDES : contains
     SLIDES ||--|{ OBJECTS : contains
-    PRESENTATIONS ||--|| SETTINGS : has
+    PRESENTATIONS ||--|| CACHE : cached
+    USERS ||--o{ USAGE : tracks
+    USERS ||--o{ RATE_LIMITS : has
     
     USERS {
-        string uid PK
-        string email
+        string uid PK "Auth.uid only"
+        string email "Encrypted"
         string displayName
         timestamp createdAt
-        map usage
+        map settings
+        boolean isActive
     }
     
     PRESENTATIONS {
-        string id PK
-        string userId FK
-        string title
-        string topic
-        number slideCount
-        string tone
-        string goal
-        timestamp createdAt
-        timestamp updatedAt
-    }
-    
-    SECTIONS {
-        string id PK
-        string presentationId FK
-        string title
-        number order
+        string id PK "UUID"
+        string userId FK "Owner only write"
+        string title "Required"
+        string subtitle
+        boolean isPublic "Default false"
+        array sharedWith "User IDs"
+        timestamp createdAt "Server timestamp"
+        timestamp updatedAt "Auto update"
+        map metadata
     }
     
     SLIDES {
         string id PK
-        string sectionId FK
-        string type
-        map content
-        string speakerNotes
-        array presenterNotes
-        array images
+        string presentationId FK
+        string type "Validated enum"
+        string heading "Max 100 chars"
+        map content "Validated schema"
+        array bullets "Max 10 items"
+        string imageUrl "Storage ref"
         number order
+        string theme
     }
     
     OBJECTS {
         string id PK
         string slideId FK
-        string type
-        map coordinates
-        map properties
+        string type "text|image|shape"
+        map coordinates "x,y,width,height"
+        map properties "Type-specific"
         boolean visible
     }
     
-    SETTINGS {
+    CACHE {
+        string key PK "Hash of params"
         string presentationId FK
-        string theme
-        string colorScheme
-        boolean animations
+        map data "Cached response"
+        timestamp expiry "TTL 24 hours"
+    }
+    
+    USAGE {
+        string userId FK
+        string resource "presentations|slides|images"
+        number count
+        timestamp date
+        map metadata
+    }
+    
+    RATE_LIMITS {
+        string userId FK
+        string endpoint
+        number requests
+        timestamp windowStart
+        timestamp resetAt
     }
 ```
 
-## API Endpoints
+## API Architecture with Improvements
 
 ```mermaid
 graph LR
-    subgraph "Presentation APIs"
-        FP[POST /api/full-presentation<br/>Complex, detailed]
-        SP[POST /api/simple-presentation<br/>Simple, reliable]
-        FSP[POST /api/fast-presentation<br/>Minimal, fast]
+    subgraph "API Gateway"
+        GATE[API Gateway<br/>- Authentication<br/>- Rate Limiting<br/>- Caching]
     end
     
-    subgraph "AI APIs"
-        AGP[POST /api/ai/generate-presentation<br/>With rate limiting]
-        AIG[POST /api/ai/generate-image<br/>Image generation]
+    subgraph "Main API (Consolidated)"
+        AGP[POST /api/ai/generate-presentation<br/>✅ Protected<br/>✅ Validated<br/>✅ Cached<br/>30s timeout]
     end
     
-    subgraph "Inputs"
-        Topic[topic: string]
-        Count[slideCount: number]
-        Tone[tone: string]
-        Goal[goal: string]
-        Audience[audience: string]
+    subgraph "Deprecated (Redirected)"
+        SP[/api/simple-presentation<br/>→ 301 Redirect]
+        FP[/api/full-presentation<br/>→ 301 Redirect]
+        FSP[/api/fast-presentation<br/>→ 301 Redirect]
     end
     
-    subgraph "Outputs"
-        Pres[Presentation JSON]
-        Meta[Metadata]
-        Timing[Performance Metrics]
+    subgraph "Image APIs"
+        IG[/api/imagen/generate<br/>Queue-based]
+        IP[/api/imagen/process-queue<br/>Background job]
+        IR[/api/imagen/retry<br/>Error recovery]
     end
     
-    Topic --> FP
-    Count --> FP
-    Tone --> FP
-    Goal --> FP
-    Audience --> FP
+    subgraph "Export APIs"
+        PPT[/api/export/powerpoint<br/>Lazy loaded]
+        PDF[/api/export/pdf<br/>Lazy loaded]
+    end
     
-    Topic --> SP
-    Count --> SP
+    subgraph "Validation"
+        ZOD[Zod Schemas<br/>- Input validation<br/>- Type safety<br/>- Error messages]
+    end
     
-    Topic --> FSP
+    subgraph "Processing"
+        QUEUE[Job Queues<br/>- Image generation<br/>- Exports<br/>- Podcasts]
+        CACHE[Cache Layer<br/>- Redis/Upstash<br/>- Memory fallback]
+    end
     
-    FP --> Pres
-    SP --> Pres
-    FSP --> Pres
+    GATE --> AGP
+    GATE --> IG
+    GATE --> PPT
     
-    FP --> Meta
-    FP --> Timing
+    SP --> AGP
+    FP --> AGP
+    FSP --> AGP
+    
+    AGP --> ZOD
+    IG --> ZOD
+    PPT --> ZOD
+    
+    ZOD --> QUEUE
+    ZOD --> CACHE
+    
+    IG --> QUEUE
+    IP --> QUEUE
 ```
 
-## Deployment Architecture
+## Performance Optimization Strategy
 
 ```mermaid
-graph TB
-    subgraph "Development"
-        Local[Local Next.js<br/>localhost:3001]
-        DevDB[(Firestore Dev)]
-        DevAuth[Firebase Auth Dev]
+flowchart LR
+    subgraph "Bundle Optimization"
+        SPLIT[Code Splitting<br/>- Vendor chunks<br/>- MUI separate<br/>- Firebase separate]
+        LAZY[Lazy Loading<br/>- Heavy components<br/>- Routes<br/>- Libraries]
+        TREE[Tree Shaking<br/>- Remove unused<br/>- Optimize imports]
     end
     
-    subgraph "Production Options"
-        Vercel[Vercel Hosting]
-        GCR[Google Cloud Run]
-        GAE[Google App Engine]
+    subgraph "Caching Strategy"
+        L1[Browser Cache<br/>React Query]
+        L2[Edge Cache<br/>CDN/Vercel]
+        L3[Redis Cache<br/>API responses]
+        L4[Memory Cache<br/>Fallback]
     end
     
-    subgraph "Shared Services"
-        ProdDB[(Firestore Prod)]
-        ProdAuth[Firebase Auth Prod]
-        VAI[Vertex AI]
-        GCS[Google Cloud Storage]
+    subgraph "Runtime Performance"
+        WV[Web Vitals<br/>Monitoring]
+        RT[Resource Timing<br/>Observation]
+        LT[Long Task<br/>Detection]
+        MEM[Memory Usage<br/>Tracking]
     end
     
-    Local --> DevDB
-    Local --> DevAuth
-    Local --> VAI
+    subgraph "API Performance"
+        TO[30s Timeout<br/>vs 7 min]
+        RL[Rate Limiting<br/>Sliding window]
+        CB[Circuit Breaker<br/>Fail fast]
+        BG[Background Jobs<br/>Async processing]
+    end
     
-    Vercel --> ProdDB
-    Vercel --> ProdAuth
-    Vercel --> VAI
+    SPLIT --> LAZY
+    LAZY --> TREE
     
-    GCR --> ProdDB
-    GCR --> ProdAuth
-    GCR --> VAI
+    L1 --> L2
+    L2 --> L3
+    L3 --> L4
     
-    GAE --> ProdDB
-    GAE --> ProdAuth
-    GAE --> VAI
+    WV --> RT
+    RT --> LT
+    LT --> MEM
     
-    ProdDB --> GCS
+    TO --> RL
+    RL --> CB
+    CB --> BG
 ```
 
-## Coordinate System
+## CI/CD Pipeline
+
+```mermaid
+flowchart TB
+    subgraph "Development"
+        DEV[Local Development<br/>npm run dev]
+        TEST[Testing<br/>npm run test]
+        LINT[Linting<br/>npm run lint]
+        TC[Type Check<br/>npm run typecheck]
+    end
+    
+    subgraph "GitHub Actions"
+        PUSH[Push to main/develop]
+        CI[CI Pipeline<br/>- Test matrix<br/>- Node 18.x, 20.x<br/>- Coverage]
+        SEC[Security Scan<br/>- npm audit<br/>- Snyk scan]
+        BUILD[Build Check<br/>- Next.js build<br/>- Bundle analysis]
+    end
+    
+    subgraph "Deployment"
+        RULES[Deploy Rules<br/>- Firestore<br/>- Storage]
+        VER[Deploy to Vercel<br/>- Production build<br/>- Env vars]
+        FUNC[Deploy Functions<br/>- Firebase functions]
+        SMOKE[Smoke Tests<br/>- Health checks<br/>- API tests]
+    end
+    
+    subgraph "Monitoring"
+        ALERT[Alerts<br/>- Slack<br/>- Email]
+        DASH[Dashboard<br/>- Performance<br/>- Errors]
+    end
+    
+    DEV --> TEST
+    TEST --> LINT
+    LINT --> TC
+    TC --> PUSH
+    
+    PUSH --> CI
+    CI --> SEC
+    SEC --> BUILD
+    BUILD -->|Pass| RULES
+    
+    RULES --> VER
+    VER --> FUNC
+    FUNC --> SMOKE
+    
+    SMOKE -->|Success| ALERT
+    SMOKE -->|Fail| ALERT
+    ALERT --> DASH
+```
+
+## Testing Architecture
 
 ```mermaid
 graph TD
-    subgraph "1920x1080 Canvas"
-        Origin[0,0 Top-Left]
-        BR[1920,1080 Bottom-Right]
-        
-        subgraph "Zones"
-            Header[Header Zone<br/>100,100 - 1820,300]
-            Content[Content Zone<br/>100,350 - 1820,950]
-            Footer[Footer Zone<br/>100,980 - 1820,1060]
-        end
-        
-        subgraph "Grid System"
-            Col1[Column 1<br/>100-620]
-            Col2[Column 2<br/>640-1280]
-            Col3[Column 3<br/>1300-1820]
+    subgraph "Test Types"
+        UNIT[Unit Tests<br/>- Components<br/>- Hooks<br/>- Utils]
+        INT[Integration Tests<br/>- API routes<br/>- Firebase<br/>- Cache]
+        E2E[E2E Tests<br/>- User flows<br/>- Critical paths]
+    end
+    
+    subgraph "Test Infrastructure"
+        JEST[Jest<br/>- Test runner<br/>- Coverage]
+        RTL[React Testing Library<br/>- Component testing]
+        MSW[Mock Service Worker<br/>- API mocking]
+        MOCK[Firebase Mocks<br/>- Auth<br/>- Firestore<br/>- Storage]
+    end
+    
+    subgraph "Coverage Areas"
+        API[API Tests<br/>✅ Authentication<br/>✅ Rate limiting<br/>✅ Validation]
+        COMP[Component Tests<br/>✅ SlideRenderer<br/>✅ Editor<br/>✅ Navigation]
+        FB[Firebase Tests<br/>✅ Config<br/>✅ Error recovery<br/>✅ Security]
+    end
+    
+    UNIT --> JEST
+    INT --> JEST
+    E2E --> JEST
+    
+    JEST --> RTL
+    JEST --> MSW
+    JEST --> MOCK
+    
+    RTL --> COMP
+    MSW --> API
+    MOCK --> FB
+```
+
+## Production Deployment Architecture
+
+```mermaid
+graph TB
+    subgraph "Load Balancer"
+        LB[Vercel Edge Network<br/>Global CDN]
+    end
+    
+    subgraph "Application Tier"
+        V1[Vercel Instance 1]
+        V2[Vercel Instance 2]
+        V3[Vercel Instance N]
+    end
+    
+    subgraph "Caching Tier"
+        REDIS[Upstash Redis<br/>- Global replication<br/>- Auto-failover]
+        CDN[Vercel CDN<br/>- Static assets<br/>- API cache]
+    end
+    
+    subgraph "Firebase Services"
+        subgraph "Multi-Region"
+            AUTH[Firebase Auth<br/>Global]
+            FS1[Firestore<br/>us-central1]
+            FS2[Firestore<br/>europe-west1]
+            ST[Cloud Storage<br/>Multi-region]
         end
     end
     
-    Origin --> Header
-    Header --> Content
-    Content --> Footer
-    Footer --> BR
+    subgraph "Google Cloud"
+        VAI[Vertex AI<br/>- Auto-scaling<br/>- Regional endpoints]
+        MON[Cloud Monitoring<br/>- Logs<br/>- Metrics<br/>- Alerts]
+    end
+    
+    subgraph "Error Recovery"
+        CB[Circuit Breakers<br/>Per service]
+        DLQ[Dead Letter Queue<br/>Failed jobs]
+        RETRY[Retry Logic<br/>Exponential backoff]
+    end
+    
+    LB --> V1
+    LB --> V2
+    LB --> V3
+    
+    V1 --> REDIS
+    V2 --> REDIS
+    V3 --> REDIS
+    
+    V1 --> CDN
+    
+    V1 --> AUTH
+    V1 --> FS1
+    V1 --> ST
+    
+    FS1 -.->|Replication| FS2
+    
+    V1 --> VAI
+    VAI --> MON
+    
+    V1 --> CB
+    CB --> RETRY
+    RETRY --> DLQ
 ```
+
+## Security Model
+
+```mermaid
+flowchart TB
+    subgraph "Authentication Layer"
+        USER[User Request]
+        TOKEN[ID Token]
+        ADMIN[Firebase Admin SDK]
+        VERIFY[Token Verification]
+    end
+    
+    subgraph "Authorization Layer"
+        RBAC[Role-Based Access]
+        OWNER[Resource Owner Check]
+        SHARE[Sharing Permissions]
+        PUBLIC[Public Access]
+    end
+    
+    subgraph "Validation Layer"
+        ZOD[Zod Schemas]
+        SANITIZE[Input Sanitization]
+        ESCAPE[XSS Prevention]
+        SIZE[Size Limits]
+    end
+    
+    subgraph "Rate Limiting"
+        WINDOW[Sliding Window]
+        BUCKET[Token Bucket]
+        USER_LIMIT[Per User Limits]
+        IP_LIMIT[Per IP Limits]
+    end
+    
+    subgraph "Security Rules"
+        FS_RULES[Firestore Rules<br/>- User isolation<br/>- Field validation]
+        ST_RULES[Storage Rules<br/>- File type check<br/>- Size limits]
+    end
+    
+    subgraph "Security Headers"
+        CSP[Content Security Policy]
+        HSTS[Strict Transport Security]
+        XFO[X-Frame-Options]
+        CORS[CORS Configuration]
+    end
+    
+    USER --> TOKEN
+    TOKEN --> ADMIN
+    ADMIN --> VERIFY
+    
+    VERIFY --> RBAC
+    RBAC --> OWNER
+    OWNER --> SHARE
+    SHARE --> PUBLIC
+    
+    USER --> ZOD
+    ZOD --> SANITIZE
+    SANITIZE --> ESCAPE
+    ESCAPE --> SIZE
+    
+    USER --> WINDOW
+    WINDOW --> BUCKET
+    BUCKET --> USER_LIMIT
+    USER_LIMIT --> IP_LIMIT
+    
+    RBAC --> FS_RULES
+    RBAC --> ST_RULES
+    
+    USER --> CSP
+    CSP --> HSTS
+    HSTS --> XFO
+    XFO --> CORS
+```
+
+---
+
+*Architecture diagrams updated: August 25, 2025*  
+*Reflects all implemented improvements including security, caching, error recovery, and performance optimizations*

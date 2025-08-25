@@ -69,7 +69,7 @@ export default function GeneratePage() {
     goal: 'inform',
     audience: 'general',
     style: 'modern',
-    generateImages: 'later',
+    generateImages: 'now',  // Default to generating images immediately
     imageStyle: 'photorealistic',
   });
 
@@ -105,6 +105,36 @@ export default function GeneratePage() {
       const data = await response.json();
 
       if (!response.ok) {
+        // Log the actual error for debugging
+        console.error('Generation failed:', response.status, data);
+        
+        // Handle different error types appropriately
+        if (response.status === 429 || data.error?.includes('RATE_LIMIT')) {
+          // Rate limit - auto-retry with countdown
+          let countdown = 30;
+          const updateCountdown = setInterval(() => {
+            countdown--;
+            setError(`Service is busy. Retrying in ${countdown} seconds...`);
+            if (countdown <= 0) {
+              clearInterval(updateCountdown);
+              setError(null);
+              handleGenerate(); // Retry
+            }
+          }, 1000);
+          return; // Exit early
+        }
+        
+        if (data.error?.includes('QUOTA_EXCEEDED')) {
+          // Quota exhausted - can't retry today
+          throw new Error('Daily generation limit reached. Please try again tomorrow.');
+        }
+        
+        if (data.error?.includes('AUTH_ERROR')) {
+          // Authentication issue - needs admin attention
+          throw new Error('Service configuration error. Please contact support.');
+        }
+        
+        // Other errors - show actual error
         throw new Error(data.error || 'Failed to generate presentation');
       }
 
@@ -114,7 +144,8 @@ export default function GeneratePage() {
       const subtitle = data.data?.subtitle || data.presentation?.subtitle;
       const actualSlideCount = slides.length || params.slideCount;
       
-      setSuccess(`Presentation generated successfully! ${actualSlideCount} slides created.`);
+      // Don't show success message - we're redirecting immediately
+      console.log(`Presentation generated successfully! ${actualSlideCount} slides created.`);
       
       // Save to Firestore
       if (slides.length > 0 && user) {
@@ -146,56 +177,92 @@ export default function GeneratePage() {
             },
           });
           
-          console.log('Presentation saved with ID:', presentationId);
+          // Presentation saved successfully
           
-          // Queue image generation if requested
-          console.log('Image generation params:', { 
-            generateImages: params.generateImages, 
-            imageStyle: params.imageStyle 
-          });
+          // REDIRECT IMMEDIATELY - don't wait for anything else!
+          console.log('Redirecting to editor NOW:', `/presentations/${presentationId}/edit`);
+          
+          // Queue image generation BEFORE redirect (fire and forget)
           if (params.generateImages === 'now' && params.imageStyle) {
-            try {
-              // Prepare image generation requests from slides with image objects
-              console.log('Checking slides for images:', slides.length, 'slides');
-              const slidesWithImages = slides.filter((slide: any) => slide.objects?.some((obj: any) => obj.type === 'image'));
-              console.log('Slides with images:', slidesWithImages.length);
-              
-              const imageRequests = slidesWithImages.map((slide: any) => {
-                  const imageObj = slide.objects.find((obj: any) => obj.type === 'image');
-                  console.log('Image object found:', imageObj);
-                  return {
-                    slideId: slide.id,
-                    description: imageObj?.alt || imageObj?.generationDescription || `Image for slide`,
-                    style: params.imageStyle,
-                    priority: 1, // Normal priority
-                  };
+            // Fire and forget - don't await this
+            (async () => {
+              try {
+                console.log('🎨 Starting async image generation...');
+                
+                // Look for slides with image objects
+                const slidesWithImages = slides.filter((slide: any) => 
+                  slide.objects?.some((obj: any) => obj.type === 'image')
+                );
+                
+                console.log(`Found ${slidesWithImages.length} slides with images out of ${slides.length} total slides`);
+                
+                // Log details about each slide with images
+                slidesWithImages.forEach((slide: any, idx: number) => {
+                  const imageCount = slide.objects?.filter((obj: any) => obj.type === 'image').length || 0;
+                  console.log(`  Slide ${idx + 1}: ${imageCount} images, type: ${slide.type}`);
                 });
-              
-              console.log('Image requests prepared:', imageRequests.length, imageRequests);
-              
-              if (imageRequests.length > 0) {
-                // Queue image generation jobs asynchronously
-                const { queuePresentationImages } = await import('@/lib/firebase/image-queue');
-                const jobIds = await queuePresentationImages(presentationId, imageRequests);
-                console.log('Queued', jobIds.length, 'image generation jobs');
-                setSuccess(`Presentation created! ${imageRequests.length} images are being generated in the background.`);
                 
-                // Store the image style preference in localStorage for the editor
-                localStorage.setItem('defaultImageStyle', params.imageStyle || 'photorealistic');
+                const imageRequests = slidesWithImages.flatMap((slide: any) => {
+                  const imageObjects = slide.objects?.filter((obj: any) => obj.type === 'image') || [];
+                  
+                  return imageObjects.map((imageObj: any, index: number) => {
+                    const description = imageObj?.generationDescription || imageObj?.alt || `Image for slide`;
+                    
+                    return {
+                      slideId: slide.id,
+                      objectId: imageObj.id,
+                      imageIndex: index,
+                      description: description,
+                      style: params.imageStyle,
+                      priority: 1,
+                    };
+                  });
+                });
                 
-                // Start processing the queue (fire and forget)
-                fetch('/api/imagen/process-queue', { method: 'POST' })
-                  .catch(err => console.error('Failed to start queue processor:', err));
+                if (imageRequests.length > 0) {
+                  // Queue image generation jobs asynchronously
+                  const { queuePresentationImages } = await import('@/lib/firebase/image-queue');
+                  const jobIds = await queuePresentationImages(presentationId, imageRequests);
+                  console.log('Queued', jobIds.length, 'image generation jobs');
+                  
+                  // Store the image style preference
+                  localStorage.setItem('defaultImageStyle', params.imageStyle || 'photorealistic');
+                  
+                  // Start processing the queue
+                  for (let i = 0; i < 3; i++) {
+                    try {
+                      const response = await fetch('/api/imagen/process-queue', { 
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                      });
+                      if (response.ok) {
+                        console.log('✅ Queue processor started');
+                        break;
+                      }
+                    } catch (err) {
+                      console.error(`Queue start attempt ${i + 1} failed:`, err);
+                    }
+                    if (i < 2) await new Promise(r => setTimeout(r, 1000));
+                  }
+                }
+              } catch (error) {
+                console.error('❌ Error in async image generation:', error);
+                // Don't fail - images will generate later
               }
-            } catch (error) {
-              console.error('Error queueing image generation:', error);
-              // Don't fail the whole operation if image generation fails
-            }
+            })(); // Execute immediately without awaiting
           }
           
-          // Redirect to editor immediately - don't wait for images!
-          setSuccess(`Presentation saved! Redirecting to editor...`);
-          router.push(`/presentations/${presentationId}/edit`);
+          // Force redirect with window.location as fallback
+          console.log('About to redirect to:', `/presentations/${presentationId}/edit`);
+          setLoading(false); // Stop loading before redirect
+          
+          // Use setTimeout to ensure UI updates before redirect
+          setTimeout(() => {
+            console.log('Executing redirect now...');
+            window.location.href = `/presentations/${presentationId}/edit`;
+          }, 100);
+          
+          return; // Exit early to prevent finally block
         } catch (error) {
           console.error('Error saving presentation:', error);
           // Fall back to localStorage with proper structure

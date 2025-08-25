@@ -26,8 +26,8 @@ export default async function handler(
       return res.status(400).json({ error: 'Script and presentationId are required' });
     }
 
-    console.log('Synthesizing podcast with voices:', voice1, voice2);
-    console.log('Script has', script.dialogue?.length || 0, 'dialogue turns');
+    // Synthesizing podcast with selected voices
+    // Processing script dialogue turns
 
     // Synthesize audio for each dialogue turn
     const audioSegments: Buffer[] = [];
@@ -37,7 +37,7 @@ export default async function handler(
       const turn = dialogue[i];
       const voiceName = turn.speaker === 'Host' ? voice1 : voice2;
       
-      console.log(`Synthesizing turn ${i + 1}/${dialogue.length} - ${turn.speaker}: "${turn.text.substring(0, 50)}..."`);
+      // Synthesizing dialogue turn
 
       try {
         // Prepare the TTS request
@@ -71,7 +71,7 @@ export default async function handler(
       throw new Error('No audio segments were successfully synthesized');
     }
 
-    console.log('Successfully synthesized', audioSegments.length, 'audio segments');
+    // Successfully synthesized audio segments
 
     // Combine all audio segments into a single buffer
     const combinedAudio = Buffer.concat(audioSegments);
@@ -80,13 +80,13 @@ export default async function handler(
     const storagePath = `presentations/${presentationId}/podcast`;
     const fileName = `podcast_${Date.now()}.mp3`;
     
-    console.log('Uploading audio to Firebase Storage...');
+    // Uploading audio to Firebase Storage
     const audioUrl = await uploadAudioToStorage(
       combinedAudio.toString('base64'),
       `${storagePath}/${fileName}`
     );
 
-    console.log('Audio uploaded successfully:', audioUrl);
+    // Audio uploaded successfully
 
     return res.status(200).json({ 
       success: true,

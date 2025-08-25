@@ -293,6 +293,36 @@ export const modernTemplate: Template = {
       ],
     },
     
+    [SlideType.THREE_IMAGES]: {
+      slideType: SlideType.THREE_IMAGES,
+      zones: [
+        {
+          id: 'image1',
+          role: 'image',
+          coordinates: { x: 95, y: 100, width: 1116, height: 884 },
+          acceptedTypes: ['image'],
+          required: true,
+          alignment: { horizontal: 'center', vertical: 'middle' },
+        },
+        {
+          id: 'image2',
+          role: 'image',
+          coordinates: { x: 1245, y: 100, width: 580, height: 426 },
+          acceptedTypes: ['image'],
+          required: true,
+          alignment: { horizontal: 'center', vertical: 'middle' },
+        },
+        {
+          id: 'image3',
+          role: 'image',
+          coordinates: { x: 1245, y: 558, width: 580, height: 426 },
+          acceptedTypes: ['image'],
+          required: true,
+          alignment: { horizontal: 'center', vertical: 'middle' },
+        },
+      ],
+    },
+    
     [SlideType.QUOTE]: {
       slideType: SlideType.QUOTE,
       zones: [

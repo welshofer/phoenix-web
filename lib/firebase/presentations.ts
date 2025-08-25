@@ -81,7 +81,7 @@ export async function savePresentation(
       presentationDoc
     );
 
-    console.log('Presentation saved:', presentationId);
+    // Presentation saved successfully
     return presentationId;
   } catch (error) {
     console.error('Error saving presentation:', error);
@@ -167,7 +167,7 @@ export async function updatePresentationMetadata(
     });
 
     await updateDoc(docRef, updateData);
-    console.log('Presentation metadata updated:', presentationId);
+    // Presentation metadata updated successfully
   } catch (error) {
     console.error('Error updating presentation metadata:', error);
     throw new Error('Failed to update presentation');
@@ -190,7 +190,7 @@ export async function updatePresentationSlides(
       'metadata.slideCount': slides.length,
     });
 
-    console.log('Presentation slides updated:', presentationId);
+    // Presentation slides updated successfully
   } catch (error) {
     console.error('Error updating presentation slides:', error);
     throw new Error('Failed to update slides');
@@ -226,6 +226,78 @@ export async function updateSlide(
 }
 
 /**
+ * Update image in a slide
+ */
+export async function updateSlideImage(
+  presentationId: string,
+  slideId: string,
+  imageData: {
+    src: string;
+    objectId?: string; // Specific object ID to update
+    imageIndex?: number; // Specific index for multi-image slides
+    variants?: string[];
+    heroIndex?: number;
+    generatedAt?: Date;
+    generationPrompt?: string;
+  }
+): Promise<void> {
+  try {
+    const presentation = await getPresentation(presentationId);
+    if (!presentation || !presentation.slides) {
+      throw new Error('Presentation not found');
+    }
+
+    const updatedSlides = presentation.slides.map((slide: any) => {
+      if (slide.id === slideId) {
+        // Find and update the specific image object in the slide
+        let imageCounter = 0;
+        const updatedObjects = slide.objects?.map((obj: any) => {
+          if (obj.type !== 'image') {
+            return obj;
+          }
+          
+          const currentImageIndex = imageCounter++;
+          
+          // Match by either objectId or imageIndex for image objects
+          const shouldUpdate = (
+            (imageData.objectId && obj.id === imageData.objectId) ||
+            (imageData.imageIndex !== undefined && currentImageIndex === imageData.imageIndex) ||
+            // Fallback: if no objectId or imageIndex, update first empty image
+            (!imageData.objectId && imageData.imageIndex === undefined && !obj.src)
+          );
+
+          if (shouldUpdate) {
+            console.log(`✅ Updating image object ${obj.id} with new src:`, imageData.src.substring(0, 50) + '...');
+            return {
+              ...obj,
+              src: imageData.src,
+              variants: imageData.variants,
+              heroIndex: imageData.heroIndex || 0,
+              generatedAt: imageData.generatedAt,
+              generationPrompt: imageData.generationPrompt,
+            };
+          }
+          return obj;
+        });
+
+        return {
+          ...slide,
+          objects: updatedObjects,
+          updatedAt: new Date(),
+        };
+      }
+      return slide;
+    });
+
+    await updatePresentationSlides(presentationId, updatedSlides);
+    // Updated slide with generated image
+  } catch (error) {
+    console.error('Error updating slide image:', error);
+    throw new Error('Failed to update slide image');
+  }
+}
+
+/**
  * Delete a presentation
  */
 export async function deletePresentation(
@@ -233,7 +305,7 @@ export async function deletePresentation(
 ): Promise<void> {
   try {
     await deleteDoc(doc(db, PRESENTATIONS_COLLECTION, presentationId));
-    console.log('Presentation deleted:', presentationId);
+    // Presentation deleted successfully
   } catch (error) {
     console.error('Error deleting presentation:', error);
     throw new Error('Failed to delete presentation');

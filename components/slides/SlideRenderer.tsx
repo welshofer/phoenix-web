@@ -4,6 +4,8 @@ import BulletSlide from './renderers/BulletSlide';
 import ImageSlide from './renderers/ImageSlide';
 import TwoColumnSlide from './renderers/TwoColumnSlide';
 import QuoteSlide from './renderers/QuoteSlide';
+import ContentSlide from './renderers/ContentSlide';
+import ThreeImagesSlide from './renderers/ThreeImagesSlide';
 
 interface SlideRendererProps {
   slide: Slide;
@@ -18,9 +20,12 @@ export default function SlideRenderer({ slide, isEditing = false, scale = 1 }: S
     [SlideType.IMAGE]: ImageSlide,
     [SlideType.TWO_COLUMN]: TwoColumnSlide,
     [SlideType.QUOTE]: QuoteSlide,
+    [SlideType.CONTENT]: ContentSlide,
+    [SlideType.THREE_IMAGES]: ThreeImagesSlide,
   };
 
-  const Component = slideComponents[slide.type] || TitleSlide;
+  // Default to ContentSlide for unknown types (better than blank)
+  const Component = slideComponents[slide.type] || ContentSlide;
 
   return (
     <div 

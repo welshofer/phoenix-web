@@ -75,7 +75,7 @@ class RateLimiter {
     // Deplete tokens to prevent immediate retries
     this.tokens = 0;
     
-    console.log(`Rate limited. Backing off for ${delayMs}ms (attempt ${this.consecutiveErrors})`);
+    console.warn(`Rate limited. Backing off for ${delayMs}ms (attempt ${this.consecutiveErrors})`);
   }
 
   /**
